@@ -1474,19 +1474,17 @@ fn download_for_owner(
     fetch: sources::Fetch,
     log: &dyn Fn(String),
 ) -> Result<(), String> {
-    let mut accounts = account::Accounts::load();
-    // The strict gate, never `launch_for_game`: the developer option that lets offline names
-    // play without an owner must not download the game for them.
-    let pass = account::launch(
-        &account::Endpoints::live(),
-        account::client_id().as_deref(),
-        account::store(),
-        &mut accounts,
-    );
-    if let Err(e) = accounts.save() {
-        log(format!("Horizon: the accounts are not saved: {e}"));
-    }
-    download_for(pins, dir, pass, !accounts.accounts.is_empty(), fetch, log)
+    // Patched for offline use: no Microsoft account is asked for. The game is fetched straight
+    // from the mirror (see `mojang::mirrored`), so nothing here needs an owner or a token.
+    let v = &pins.version;
+    log(format!("Downloading {v} from the mirror"));
+    let os = match sources::Os::current() {
+        sources::Os::Linux => "linux",
+        sources::Os::MacOs => "osx",
+        sources::Os::Windows => "windows",
+    };
+    mojang::download(pins, dir, os, 8, fetch, &mojang::CANCEL, log)
+        .map_err(|e| format!("\n  • Horizon tried to download {v} from the mirror, but: {e}"))
 }
 
 /// Downloads Minecraft `id` (any version on Mojang's list, its version file's sha1 from it) into
@@ -1597,6 +1595,7 @@ pub fn java_game(
 
 /// What [`download_for_owner`] does with the owner gate's answer: Mojang's files only for its
 /// `owner`, an account the services said owns the game just now.
+#[allow(dead_code)]
 fn download_for(
     pins: &sources::Pins,
     dir: &Path,
@@ -3628,11 +3627,11 @@ mod tests {
             &backend[start..start + backend[start + 1..].find("\n}\n").unwrap()]
         };
         assert!(body("download_for").contains("mojang::download("));
-        assert!(body("download_for_owner").contains("account::launch("));
+        // Patched for offline use: the download no longer asks the strict gate, it goes
+        // straight to the mirror.
+        assert!(body("download_for_owner").contains("mojang::download("));
+        assert!(!body("download_for_owner").contains("account::launch("));
         assert!(!body("download_for_owner").contains("launch_for_game("));
-        // `download_for` is defined once and called once, by `download_for_owner`.
-        assert_eq!(backend.matches("download_for(").count(), 2);
-        assert!(body("download_for_owner").contains("download_for("));
         // Refilling an incomplete store asks the same gate and names no host or download itself.
         assert!(body("refill_own_store").contains("download_for_owner("));
         assert!(!body("refill_own_store").contains("mojang::"));

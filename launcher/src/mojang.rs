@@ -16,9 +16,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
 use std::sync::Mutex;
 use std::time::Duration;
 
-const OBJECTS: &str = "https://resources.download.minecraft.net";
+const OBJECTS: &str = "https://bmclapi2.bangbang93.com/assets";
 /// The index of Mojang's Java runtimes, the one the official launcher reads.
-const JAVA_RUNTIMES: &str = "https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json";
+const JAVA_RUNTIMES: &str = "https://bmclapi2.bangbang93.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json";
 
 /// Set to stop the download under way (the window's Cancel); cleared when a preparation starts.
 pub static CANCEL: AtomicBool = AtomicBool::new(false);
@@ -128,6 +128,7 @@ pub fn download(
             // A connection that fails now and then is tried again, and a file that still fails
             // does not stop the others: the next download fetches what is left.
             let retrying = |url: &str| {
+                let url = &mirrored(url);
                 let mut got = fetch(url);
                 for _ in 0..2 {
                     if got.is_ok() {
@@ -314,6 +315,28 @@ pub(crate) fn native_classifier(library: &Value, os: &str) -> Option<String> {
         .map(|key| key.replace("${arch}", arch))
 }
 
+/// Mirrors a Mojang download address to BMCLAPI, for the absolute URLs a version file
+/// carries (the client jar, the libraries, the asset index).
+fn mirrored(url: &str) -> String {
+    // BMCLAPI's rules (https://bmclapidoc.bangbang93.com/): launchermeta, launcher and
+    // piston-meta keep their path; piston-data's objects move to /v1/objects; libraries to
+    // /maven; the asset objects to /assets. Every one checked against the live service.
+    const PAIRS: &[(&str, &str)] = &[
+        ("https://piston-data.mojang.com", "https://bmclapi2.bangbang93.com"),
+        ("https://piston-meta.mojang.com", "https://bmclapi2.bangbang93.com"),
+        ("https://launchermeta.mojang.com", "https://bmclapi2.bangbang93.com"),
+        ("https://launcher.mojang.com", "https://bmclapi2.bangbang93.com"),
+        ("https://libraries.minecraft.net", "https://bmclapi2.bangbang93.com/maven"),
+        ("https://resources.download.minecraft.net", "https://bmclapi2.bangbang93.com/assets"),
+    ];
+    for (from, to) in PAIRS {
+        if let Some(rest) = url.strip_prefix(from) {
+            return format!("{to}{rest}");
+        }
+    }
+    url.to_string()
+}
+
 /// The asset index's objects, once each.
 fn objects(index: &Value, dir: &Path) -> Result<Vec<File>, String> {
     let objects = index["objects"]
@@ -348,7 +371,8 @@ fn objects(index: &Value, dir: &Path) -> Result<Vec<File>, String> {
 
 /// One file from Mojang, refused unless it has the size and sha1 Mojang lists.
 fn fetch_file(fetch: Fetch, file: &File) -> Result<Vec<u8>, String> {
-    let body = fetch(&file.url)?;
+    // Through the mirror: a version file names Mojang's own hosts for its jar and libraries.
+    let body = fetch(&mirrored(&file.url))?;
     if let Some(size) = file.size.filter(|&size| size != body.len() as u64) {
         return Err(format!(
             "is {} bytes, not the {size} Mojang lists",

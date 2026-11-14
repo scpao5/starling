@@ -411,7 +411,7 @@ pub(crate) fn fetch_manifest(
     }
     let (v, sha1) = (&pins.version, &pins.manifests[0]);
     log(format!("Downloading the {v} version file from Mojang"));
-    let url = format!("https://piston-meta.mojang.com/v1/packages/{sha1}/{v}.json");
+    let url = format!("https://bmclapi2.bangbang93.com/v1/packages/{sha1}/{v}.json");
     let body =
         fetch_checked(fetch, &url, sha1).map_err(|e| format!("Mojang's {v} version file {e}"))?;
     write_file(path, &body)

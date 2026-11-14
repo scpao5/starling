@@ -55,9 +55,11 @@ pub struct Sources {
 
 impl Sources {
     pub fn live() -> Self {
+        // BMCLAPI mirrors every host Starling fetches from, so the phone's first download
+        // does not depend on Mojang's own servers being reachable.
         Self {
-            meta: "https://piston-meta.mojang.com".into(),
-            resources: "https://resources.download.minecraft.net".into(),
+            meta: "https://bmclapi2.bangbang93.com".into(),
+            resources: "https://bmclapi2.bangbang93.com/assets".into(),
         }
     }
 }
@@ -175,9 +177,30 @@ pub(crate) fn retrying<T>(mut attempt: impl FnMut() -> Result<T, Failure>) -> Re
 }
 
 /// `url`'s body, which must hash to `sha1`; the error names the file, never more of the URL.
+/// A Mojang download address, on BMCLAPI (https://bmclapidoc.bangbang93.com/): the version
+/// file a library lists names Mojang's own host, and so does the client jar, so every address
+/// passes here before it is fetched. Paths are kept as they are; only the host changes.
+fn mirrored(url: &str) -> String {
+    const PAIRS: &[(&str, &str)] = &[
+        ("https://piston-data.mojang.com", "https://bmclapi2.bangbang93.com"),
+        ("https://piston-meta.mojang.com", "https://bmclapi2.bangbang93.com"),
+        ("https://launchermeta.mojang.com", "https://bmclapi2.bangbang93.com"),
+        ("https://launcher.mojang.com", "https://bmclapi2.bangbang93.com"),
+        ("https://libraries.minecraft.net", "https://bmclapi2.bangbang93.com/maven"),
+        ("https://resources.download.minecraft.net", "https://bmclapi2.bangbang93.com/assets"),
+    ];
+    for (from, to) in PAIRS {
+        if let Some(rest) = url.strip_prefix(from) {
+            return format!("{to}{rest}");
+        }
+    }
+    url.to_string()
+}
+
 fn fetch_checked(url: &str, sha1: &str, name: &str) -> Result<Vec<u8>, String> {
+    let url = mirrored(url);
     let body = retrying(|| {
-        let response = agent().get(url).call().map_err(|e| match e {
+        let response = agent().get(&url).call().map_err(|e| match e {
             ureq::Error::Status(code, _) => {
                 if may_pass(code) {
                     Failure::Again(format!(

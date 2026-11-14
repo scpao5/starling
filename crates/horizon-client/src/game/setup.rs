@@ -512,7 +512,9 @@ impl Loading {
             (Files::Ready, _) if preparer::stage() == Stage::Idle && !self.setup.prepared => {
                 preparer::start(self.vanilla_root.clone());
             }
-            (Files::Missing, State::SignedIn(_))
+            // The files come from the mirror, which asks for no account: an offline player
+            // downloads them too, on the first start or after a cancel.
+            (Files::Missing, State::SignedIn(_) | State::Offline | State::OfflineProfile(_))
                 if !self.setup.cancelled && self.setup.form.is_none() =>
             {
                 accounts::download_files()
