@@ -3621,7 +3621,7 @@ impl OptionsUi {
                             0.0,
                             0.0,
                             150.0,
-                            Text::literal(&crate::lang::get_or("starling.ui.choose_file", "Choose a File...")),
+                            Text::literal(crate::lang::get_or("starling.ui.choose_file", "Choose a File...")),
                             Act::PickSkin,
                         ),
                         Some(elyby(150.0)),
@@ -3676,7 +3676,7 @@ impl OptionsUi {
                         0.0,
                         0.0,
                         310.0,
-                        Text::literal(&crate::lang::get_or("starling.ui.shader_packs", "Shader Packs...")),
+                        Text::literal(crate::lang::get_or("starling.ui.shader_packs", "Shader Packs...")),
                         Act::Push(Page::ShaderPacks),
                     ),
                     None,
@@ -3810,7 +3810,7 @@ impl OptionsUi {
                             0.,
                             0.,
                             150.,
-                            Text::literal(&crate::lang::get_or("starling.ui.touch_controls", "Touch Controls...")),
+                            Text::literal(crate::lang::get_or("starling.ui.touch_controls", "Touch Controls...")),
                             Act::Push(Page::Touch),
                         ),
                         Some(button(
@@ -3862,7 +3862,7 @@ impl OptionsUi {
                         0.,
                         0.,
                         150.,
-                        Text::literal(&crate::lang::get_or("starling.ui.bedrock_inventory", "Bedrock Inventory: ")).append(on_off(s.bedrock_inventory)),
+                        Text::literal(crate::lang::get_or("starling.ui.bedrock_inventory", "Bedrock Inventory: ")).append(on_off(s.bedrock_inventory)),
                         Act::BedrockInventory,
                     ),
                     Some(if android {
@@ -3872,7 +3872,7 @@ impl OptionsUi {
                             0.,
                             0.,
                             150.,
-                            Text::literal(&crate::lang::get_or("starling.ui.customize_layout", "Customize Layout...")),
+                            Text::literal(crate::lang::get_or("starling.ui.customize_layout", "Customize Layout...")),
                             Act::CustomButtons,
                         )
                     }),
@@ -3880,7 +3880,7 @@ impl OptionsUi {
                 self.filter_option_rows(rows)
             }
             Page::Touch => {
-                let mut rows = vec![Row::Header(&crate::lang::get_or("starling.ui.movement_look_sensitivity", "Movement & Look Sensitivity"))];
+                let mut rows = vec![Row::Header("starling.ui.movement_look_sensitivity")];
                 rows.push(Row::Big(Opt::TouchMode));
                 rows.extend(pairs(&[
                     Opt::TouchCrosshairGestures,
@@ -3889,13 +3889,13 @@ impl OptionsUi {
                     Opt::TouchSensitivityHorizontal,
                     Opt::TouchSensitivityVertical,
                 ]));
-                rows.push(Row::Header(&crate::lang::get_or("starling.ui.control_hub_feedback", "Control Hub & Feedback")));
+                rows.push(Row::Header("starling.ui.control_hub_feedback"));
                 rows.extend(pairs(&[
                     Opt::TouchControlHub,
                     Opt::TouchUiVibration,
                     Opt::TouchGameVibration,
                 ]));
-                rows.push(Row::Header(&crate::lang::get_or("starling.ui.hud_buttons_layout", "HUD Buttons & Layout")));
+                rows.push(Row::Header("starling.ui.hud_buttons_layout"));
                 rows.extend(pairs(&[
                     Opt::TouchMouseButton,
                     Opt::TouchKeyboardButton,
@@ -3908,7 +3908,7 @@ impl OptionsUi {
                     Opt::TouchLeftHand,
                     Opt::TouchSwapJumpSneak,
                 ]));
-                rows.push(Row::Header(&crate::lang::get_or("starling.ui.joystick_actions_gyroscope", "Joystick, Actions & Gyroscope")));
+                rows.push(Row::Header("starling.ui.joystick_actions_gyroscope"));
                 rows.extend(pairs(&[
                     Opt::TouchAnalog,
                     Opt::TouchSprintButton,
@@ -3926,7 +3926,7 @@ impl OptionsUi {
                         0.0,
                         0.0,
                         310.0,
-                        Text::literal(&crate::lang::get_or("starling.ui.customize_touch", "Customize Touch & GoyControl Layout...")),
+                        Text::literal(crate::lang::get_or("starling.ui.customize_touch", "Customize Touch & GoyControl Layout...")),
                         Act::TouchLayout,
                     ),
                     None,
@@ -4171,11 +4171,8 @@ impl OptionsUi {
                     .into(),
                 ));
                 rows.push(Row::Note(shader_folder_note()));
-                rows.push(pick(
-                    choice.is_none(),
-                    &crate::lang::get_or("options.off", "Off"),
-                    Act::PickShaderPack(None),
-                ));
+                let off = crate::lang::get_or("options.off", "Off");
+                rows.push(pick(choice.is_none(), &off, Act::PickShaderPack(None)));
                 if s.shader_packs.is_empty() {
                     rows.push(Row::Header("horizon.shader_packs.empty"));
                 }
@@ -4212,13 +4209,13 @@ impl OptionsUi {
                             0.0,
                             0.0,
                             150.0,
-                            Text::literal(&crate::lang::get_or("starling.ui.delete", "Delete")),
+                            Text::literal(crate::lang::get_or("starling.ui.delete", "Delete")),
                             Act::CustomDelete(b.id),
                         )),
                     ));
                 }
                 rows.push(Row::Buttons(
-                    button(0.0, 0.0, 310.0, Text::literal(&crate::lang::get_or("starling.ui.add_button", "Add Button")), Act::CustomAdd),
+                    button(0.0, 0.0, 310.0, Text::literal(crate::lang::get_or("starling.ui.add_button", "Add Button")), Act::CustomAdd),
                     None,
                 ));
                 rows
@@ -4270,7 +4267,7 @@ impl OptionsUi {
                             0.0,
                             0.0,
                             150.0,
-                            Text::literal(&crate::lang::get_or("starling.ui.draw_or_import", "Draw or Import...")),
+                            Text::literal(crate::lang::get_or("starling.ui.draw_or_import", "Draw or Import...")),
                             Act::CustomDraw(id),
                         )),
                     ),
@@ -4353,7 +4350,7 @@ impl OptionsUi {
                         0.0,
                         0.0,
                         310.0,
-                        Text::literal(&crate::lang::get_or("starling.ui.no_icon", "No Icon: Its Name")),
+                        Text::literal(crate::lang::get_or("starling.ui.no_icon", "No Icon: Its Name")),
                         Act::CustomIcon(id, None),
                     ),
                     None,
@@ -5042,7 +5039,7 @@ impl OptionsUi {
                                 w: 40.0,
                                 h: 9.0,
                                 kind: WKind::Text {
-                                    text: Text::literal(&crate::lang::get_or("starling.ui.name", "Name")),
+                                    text: Text::literal(crate::lang::get_or("starling.ui.name", "Name")),
                                     color: 0xFFA0_A0A0,
                                     centered: false,
                                 },

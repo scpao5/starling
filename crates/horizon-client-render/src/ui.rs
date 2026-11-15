@@ -1879,7 +1879,7 @@ mod tests {
     #[test]
     fn a_label_wider_than_its_widget_stays_inside_it() {
         let atlas = atlas();
-        let label = Text::literal(&crate::lang::get_or("starling.ui.graphics_api_prefer_vulkan_experimental", "Graphics API: Prefer Vulkan (Experimental)"));
+        let label = Text::literal(crate::lang::get_or("starling.ui.graphics_api_prefer_vulkan_experimental", "Graphics API: Prefer Vulkan (Experimental)"));
         assert!(atlas.font.width_text(&label.resolved()) > 96.0);
         let mut batch = HudBatch::new([640, 480]);
         scrolling_text_at(
@@ -1904,7 +1904,7 @@ mod tests {
         }
         // A label that fits is centred and not cut: every glyph is drawn.
         let mut batch = HudBatch::new([640, 480]);
-        let short = Text::literal(&crate::lang::get_or("starling.ui.done", "Done"));
+        let short = Text::literal(crate::lang::get_or("starling.ui.done", "Done"));
         scrolling_text_at(
             &mut batch,
             &atlas,
@@ -1947,7 +1947,7 @@ mod tests {
     #[test]
     fn a_tab_label_sits_lower_on_an_unselected_tab_and_is_gray_only_when_inactive() {
         let atlas = atlas();
-        let label = Text::literal(&crate::lang::get_or("starling.ui.items", "Items"));
+        let label = Text::literal(crate::lang::get_or("starling.ui.items", "Items"));
         let half = (atlas.font.width_text(&label.resolved()) / 2.0).floor();
         // A 124 px tab at x = 100: `(left + right) / 2 = (101 + 223) / 2 = 162`.
         let left = 162.0 - half;
