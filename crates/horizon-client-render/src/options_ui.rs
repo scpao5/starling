@@ -35,15 +35,25 @@ fn shader_folder_note() -> String {
     let dir = std::env::current_dir()
         .unwrap_or_default()
         .join("shaderpacks");
+    let label = |path: std::path::PathBuf| {
+        format!(
+            "{}: {}",
+            crate::lang::get_or("starling.shaderpacks.folder", "Folder"),
+            path.display()
+        )
+    };
     if cfg!(target_os = "android") {
         if crate::logging::game_home() == crate::logging::private_home() {
-            return "In the app's own files: Open Pack Folder to reach them".into();
+            return crate::lang::get_or(
+                "starling.shaderpacks.private",
+                "In the app's own files: Open Pack Folder to reach them",
+            );
         }
         if let Ok(shared) = dir.strip_prefix("/storage/emulated/0") {
-            return format!("Folder: {}", shared.display());
+            return label(shared.to_path_buf());
         }
     }
-    clipped(&format!("Folder: {}", dir.display()), 52)
+    clipped(&label(dir), 52)
 }
 fn generic(caption: &str, value: Text) -> Text {
     Text::translate("options.generic_value", &[tr(caption), value])
@@ -3561,7 +3571,7 @@ impl OptionsUi {
                             Row::Note(format!("Worlds use this name; servers use {account}"))
                         }
                         (None, None) => Row::Note(
-                            "Your name in worlds and on servers, from the next one".into(),
+                            crate::lang::get_or("starling.ui.your_name_in_worlds_and_on_servers_from_", "Your name in worlds and on servers, from the next one").into(),
                         ),
                     });
                 }
@@ -3611,7 +3621,7 @@ impl OptionsUi {
                             0.0,
                             0.0,
                             150.0,
-                            Text::literal("Choose a File..."),
+                            Text::literal(&crate::lang::get_or("starling.ui.choose_file", "Choose a File...")),
                             Act::PickSkin,
                         ),
                         Some(elyby(150.0)),
@@ -3621,12 +3631,12 @@ impl OptionsUi {
                 }
                 if page.files.is_empty() {
                     rows.push(Row::Note(
-                        "No skins yet: put 64x64 PNGs in the skins folder".into(),
+                        crate::lang::get_or("starling.ui.no_skins_yet_put_64x64_pngs_in_the_skins", "No skins yet: put 64x64 PNGs in the skins folder").into(),
                     ));
                 }
                 // Vanilla's protocol: other players get the skin of the profile from the server.
                 rows.push(Row::Note(
-                    "Only you see this skin. On a server, others see".into(),
+                    crate::lang::get_or("starling.ui.only_you_see_this_skin_on_a_server_other", "Only you see this skin. On a server, others see").into(),
                 ));
                 rows.push(Row::Note(
                     "the skin Mojang has for your account, or the default".into(),
@@ -3666,7 +3676,7 @@ impl OptionsUi {
                         0.0,
                         0.0,
                         310.0,
-                        Text::literal("Shader Packs..."),
+                        Text::literal(&crate::lang::get_or("starling.ui.shader_packs", "Shader Packs...")),
                         Act::Push(Page::ShaderPacks),
                     ),
                     None,
@@ -3800,7 +3810,7 @@ impl OptionsUi {
                             0.,
                             0.,
                             150.,
-                            Text::literal("Touch Controls..."),
+                            Text::literal(&crate::lang::get_or("starling.ui.touch_controls", "Touch Controls...")),
                             Act::Push(Page::Touch),
                         ),
                         Some(button(
@@ -3852,7 +3862,7 @@ impl OptionsUi {
                         0.,
                         0.,
                         150.,
-                        Text::literal("Bedrock Inventory: ").append(on_off(s.bedrock_inventory)),
+                        Text::literal(&crate::lang::get_or("starling.ui.bedrock_inventory", "Bedrock Inventory: ")).append(on_off(s.bedrock_inventory)),
                         Act::BedrockInventory,
                     ),
                     Some(if android {
@@ -3862,7 +3872,7 @@ impl OptionsUi {
                             0.,
                             0.,
                             150.,
-                            Text::literal("Customize Layout..."),
+                            Text::literal(&crate::lang::get_or("starling.ui.customize_layout", "Customize Layout...")),
                             Act::CustomButtons,
                         )
                     }),
@@ -3870,7 +3880,7 @@ impl OptionsUi {
                 self.filter_option_rows(rows)
             }
             Page::Touch => {
-                let mut rows = vec![Row::Header("Movement & Look Sensitivity")];
+                let mut rows = vec![Row::Header(&crate::lang::get_or("starling.ui.movement_look_sensitivity", "Movement & Look Sensitivity"))];
                 rows.push(Row::Big(Opt::TouchMode));
                 rows.extend(pairs(&[
                     Opt::TouchCrosshairGestures,
@@ -3879,13 +3889,13 @@ impl OptionsUi {
                     Opt::TouchSensitivityHorizontal,
                     Opt::TouchSensitivityVertical,
                 ]));
-                rows.push(Row::Header("Control Hub & Feedback"));
+                rows.push(Row::Header(&crate::lang::get_or("starling.ui.control_hub_feedback", "Control Hub & Feedback")));
                 rows.extend(pairs(&[
                     Opt::TouchControlHub,
                     Opt::TouchUiVibration,
                     Opt::TouchGameVibration,
                 ]));
-                rows.push(Row::Header("HUD Buttons & Layout"));
+                rows.push(Row::Header(&crate::lang::get_or("starling.ui.hud_buttons_layout", "HUD Buttons & Layout")));
                 rows.extend(pairs(&[
                     Opt::TouchMouseButton,
                     Opt::TouchKeyboardButton,
@@ -3898,7 +3908,7 @@ impl OptionsUi {
                     Opt::TouchLeftHand,
                     Opt::TouchSwapJumpSneak,
                 ]));
-                rows.push(Row::Header("Joystick, Actions & Gyroscope"));
+                rows.push(Row::Header(&crate::lang::get_or("starling.ui.joystick_actions_gyroscope", "Joystick, Actions & Gyroscope")));
                 rows.extend(pairs(&[
                     Opt::TouchAnalog,
                     Opt::TouchSprintButton,
@@ -3916,7 +3926,7 @@ impl OptionsUi {
                         0.0,
                         0.0,
                         310.0,
-                        Text::literal("Customize Touch & GoyControl Layout..."),
+                        Text::literal(&crate::lang::get_or("starling.ui.customize_touch", "Customize Touch & GoyControl Layout...")),
                         Act::TouchLayout,
                     ),
                     None,
@@ -4102,7 +4112,7 @@ impl OptionsUi {
                         fps if fps >= 260 => "Off".to_owned(),
                         fps => fps.to_string(),
                     };
-                    rows.push(Row::Note("Settings of the pack on".into()));
+                    rows.push(Row::Note(crate::lang::get_or("starling.ui.settings_of_the_pack_on", "Settings of the pack on").into()));
                     rows.push(Row::Buttons(
                         button(
                             0.0,
@@ -4154,10 +4164,18 @@ impl OptionsUi {
                     }
                 }
                 rows.push(Row::Note(
-                    "Horizon's own packs, and Iris and OptiFine ones".into(),
+                    crate::lang::get_or(
+                        "starling.shaderpacks.note",
+                        "Horizon's own packs, and Iris and OptiFine ones",
+                    )
+                    .into(),
                 ));
                 rows.push(Row::Note(shader_folder_note()));
-                rows.push(pick(choice.is_none(), "Off", Act::PickShaderPack(None)));
+                rows.push(pick(
+                    choice.is_none(),
+                    &crate::lang::get_or("options.off", "Off"),
+                    Act::PickShaderPack(None),
+                ));
                 if s.shader_packs.is_empty() {
                     rows.push(Row::Header("horizon.shader_packs.empty"));
                 }
@@ -4179,7 +4197,7 @@ impl OptionsUi {
             Page::NativePackOptions(i, at) => native_pack_option_rows(s, i, at),
             Page::CustomButtons => {
                 let mut rows = vec![Row::Note(
-                    "Buttons of your own: place them in Touch Controls".into(),
+                    crate::lang::get_or("starling.ui.buttons_of_your_own_place_them_in_touch_", "Buttons of your own: place them in Touch Controls").into(),
                 )];
                 for b in &s.custom_buttons {
                     rows.push(Row::Buttons(
@@ -4194,13 +4212,13 @@ impl OptionsUi {
                             0.0,
                             0.0,
                             150.0,
-                            Text::literal("Delete"),
+                            Text::literal(&crate::lang::get_or("starling.ui.delete", "Delete")),
                             Act::CustomDelete(b.id),
                         )),
                     ));
                 }
                 rows.push(Row::Buttons(
-                    button(0.0, 0.0, 310.0, Text::literal("Add Button"), Act::CustomAdd),
+                    button(0.0, 0.0, 310.0, Text::literal(&crate::lang::get_or("starling.ui.add_button", "Add Button")), Act::CustomAdd),
                     None,
                 ));
                 rows
@@ -4232,14 +4250,14 @@ impl OptionsUi {
                     None => "Its Name",
                 };
                 vec![
-                    Row::Note("Sends a /command or a chat line when pressed".into()),
+                    Row::Note(crate::lang::get_or("starling.ui.sends_a_command_or_a_chat_line_when_pres", "Sends a /command or a chat line when pressed").into()),
                     Row::SendField,
-                    Row::Note("Or holds a key while pressed".into()),
+                    Row::Note(crate::lang::get_or("starling.ui.or_holds_a_key_while_pressed", "Or holds a key while pressed").into()),
                     Row::Buttons(
                         choice("Game Control", CustomPick::Control),
                         Some(choice("Keyboard Key", CustomPick::Keyboard)),
                     ),
-                    Row::Note("How it looks".into()),
+                    Row::Note(crate::lang::get_or("starling.ui.how_it_looks", "How it looks").into()),
                     Row::Buttons(
                         button(
                             0.0,
@@ -4252,11 +4270,11 @@ impl OptionsUi {
                             0.0,
                             0.0,
                             150.0,
-                            Text::literal("Draw or Import..."),
+                            Text::literal(&crate::lang::get_or("starling.ui.draw_or_import", "Draw or Import...")),
                             Act::CustomDraw(id),
                         )),
                     ),
-                    Row::Note("While pressed".into()),
+                    Row::Note(crate::lang::get_or("starling.ui.while_pressed", "While pressed").into()),
                     Row::Buttons(
                         button(
                             0.0,
@@ -4335,7 +4353,7 @@ impl OptionsUi {
                         0.0,
                         0.0,
                         310.0,
-                        Text::literal("No Icon: Its Name"),
+                        Text::literal(&crate::lang::get_or("starling.ui.no_icon", "No Icon: Its Name")),
                         Act::CustomIcon(id, None),
                     ),
                     None,
@@ -5024,7 +5042,7 @@ impl OptionsUi {
                                 w: 40.0,
                                 h: 9.0,
                                 kind: WKind::Text {
-                                    text: Text::literal("Name"),
+                                    text: Text::literal(&crate::lang::get_or("starling.ui.name", "Name")),
                                     color: 0xFFA0_A0A0,
                                     centered: false,
                                 },
@@ -7928,8 +7946,8 @@ mod tests {
             s.mods.installed.push(crate::mod_list::Installed {
                 id: id.into(),
                 title: id.into(),
-                description: "May show HUD panels.".into(),
-                problem: id.is_empty().then(|| "Invalid package".into()),
+                description: crate::lang::get_or("starling.ui.may_show_hud_panels", "May show HUD panels.").into(),
+                problem: id.is_empty().then(|| crate::lang::get_or("starling.ui.invalid_package", "Invalid package").into()),
                 dev,
                 native: None,
             });
@@ -8097,10 +8115,10 @@ mod tests {
         s.mods.native_game = Some(NativeGame {
             lines: vec![(now.into(), false), (old.into(), true)],
             buttons: vec![
-                ("Compile".into(), NativeGameAct::Compile),
-                ("Use GitHub (slower)".into(), NativeGameAct::CompileOnGithub),
+                (crate::lang::get_or("starling.ui.compile", "Compile").into(), NativeGameAct::Compile),
+                (crate::lang::get_or("starling.ui.use_github_slower", "Use GitHub (slower)").into(), NativeGameAct::CompileOnGithub),
                 (
-                    "Play without native mods".into(),
+                    crate::lang::get_or("starling.ui.play_without_native_mods", "Play without native mods").into(),
                     NativeGameAct::PlayWithout,
                 ),
             ],
@@ -8216,7 +8234,7 @@ mod tests {
         s.mods.installed.push(crate::mod_list::Installed {
             id: "zoom".into(),
             title: "Zoom 2.0.0".into(),
-            description: "Zooms in.".into(),
+            description: crate::lang::get_or("starling.ui.zooms_in", "Zooms in.").into(),
             problem: None,
             dev: false,
             native: Some(crate::mod_list::NativePage::default()),
@@ -8273,7 +8291,7 @@ mod tests {
             problem: None,
             dev: false,
             native: Some(crate::mod_list::NativePage {
-                keys: vec![["zoom".into(), "Zoom key".into(), "key.keyboard.z".into()]],
+                keys: vec![["zoom".into(), crate::lang::get_or("starling.ui.zoom_key", "Zoom key").into(), "key.keyboard.z".into()]],
                 buttons: Vec::new(),
             }),
         });
@@ -9552,7 +9570,7 @@ mod tests {
         )));
         // The AI Agent page: the switch, Copy and the status the game sets.
         ui.push(Page::Agent);
-        ui.agent_status = vec!["Waiting for an agent.".into()];
+        ui.agent_status = vec![crate::lang::get_or("starling.ui.waiting_for_an_agent", "Waiting for an agent.").into()];
         let (widgets, _, _, _) = ui.layout(&s, 427.0, 240.0);
         let acts: Vec<&Act> = widgets
             .iter()
@@ -9891,7 +9909,7 @@ mod tests {
         // One upload at a time; a refusal shows in red.
         ui.skin_cloud = Cloud::Microsoft(Upload::Sending);
         assert_eq!(find(&mut ui, Act::UploadSkin).map(|b| b.1), Some(false));
-        ui.skin_cloud = Cloud::Microsoft(Upload::Failed("Mojang said no".into()));
+        ui.skin_cloud = Cloud::Microsoft(Upload::Failed(crate::lang::get_or("starling.ui.mojang_said_no", "Mojang said no").into()));
         assert!(
             ui.list_rows(&s)
                 .iter()
