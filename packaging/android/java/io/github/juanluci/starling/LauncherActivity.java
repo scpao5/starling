@@ -107,7 +107,7 @@ public final class LauncherActivity extends Activity {
             }
         }
         TextView text = new TextView(this);
-        text.setText("Opening the world with its mods…");
+        text.setText(R.string.opening_world);
         text.setTextColor(0xFFFFFFFF);
         text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         text.setGravity(Gravity.CENTER);

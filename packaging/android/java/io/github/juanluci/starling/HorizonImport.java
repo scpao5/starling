@@ -67,7 +67,7 @@ final class HorizonImport {
             @Override
             public void run() {
                 WorkService.hold(activity, REASON,
-                        "Bringing your worlds over from Horizon Android", true);
+                        activity.getString(R.string.horizon_bringing), true);
                 try {
                     String said = bring(activity, tree);
                     if (said != null) {
@@ -99,7 +99,7 @@ final class HorizonImport {
      */
     private static String bring(Activity activity, Uri tree) {
         if (!AUTHORITY.equals(tree.getAuthority())) {
-            return "That is not Horizon Android's folder: pick Horizon in the list of places";
+            return activity.getString(R.string.horizon_not_folder);
         }
         ContentResolver files = activity.getContentResolver();
         File inbox = new File(activity.getFilesDir(), "import-inbox");
@@ -128,7 +128,7 @@ final class HorizonImport {
             }
         } catch (IOException | RuntimeException e) {
             android.util.Log.w("starling", "could not read Horizon Android's folder", e);
-            return "Could not read Horizon Android's files: close Horizon Android, then try again";
+            return activity.getString(R.string.horizon_cannot_read);
         }
         return brought == 0 ? "Horizon Android has no worlds or resource packs there" : null;
     }

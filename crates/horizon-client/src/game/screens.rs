@@ -401,7 +401,7 @@ impl Game<'_> {
         let text = format!(
             "# Written by Starling: the world this game had open starts as a dedicated server.\n\
              # Delete this file to start the game normally again.\n\
-             --dedicated\n--nogui\n--control\n--universe saves\n--port 25565\n--world {world}\n"
+             --control\n--dedicated\n--nogui\n--universe\nsaves\n--port\n25565\n--world\n{world}\n"
         );
         std::fs::write(folder.join("horizon-args.txt"), text)
             .map_err(|e| format!("horizon-args.txt: {e}"))?;

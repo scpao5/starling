@@ -566,16 +566,15 @@ public class StarlingActivity extends NativeActivity {
             return;
         }
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("A native mod needs a permission")
-                .setMessage(said + "\n\nAndroid asks you next. You can change it later in the "
-                        + "app's settings.")
-                .setPositiveButton("Continue", new DialogInterface.OnClickListener() {
+                .setTitle(R.string.mod_permission_title)
+                .setMessage(said + "\n\n" + getString(R.string.mod_permission_next))
+                .setPositiveButton(R.string.continue_label, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         requestPermissions(missing.toArray(new String[0]), MOD_PERMISSIONS);
                     }
                 })
-                .setNegativeButton("Not now", new DialogInterface.OnClickListener() {
+                .setNegativeButton(R.string.not_now, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         NativeMods.declinePermissions(modBuild);
@@ -621,7 +620,7 @@ public class StarlingActivity extends NativeActivity {
         frame.setPadding(side, 0, side, 0);
         frame.addView(address);
 
-        String warning = "WE TAKE NO RESPONSIBILITY FOR OTHER BUILD SERVERS";
+        String warning = getString(R.string.build_server_warning);
         SpannableStringBuilder message = new SpannableStringBuilder(warning);
         message.setSpan(new ForegroundColorSpan(0xFFFF5252), 0, warning.length(),
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -629,15 +628,13 @@ public class StarlingActivity extends NativeActivity {
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         message.setSpan(new StyleSpan(Typeface.BOLD), 0, warning.length(),
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        message.append("\n\nThe game another server sends back runs inside Starling with full "
-                + "access, including your worlds and your signed-in account. Only use a server you "
-                + "run yourself or fully trust. Your native mods are the only files sent to it.");
+        message.append("\n\n").append(getString(R.string.build_server_risk));
 
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Build server")
+                .setTitle(R.string.build_server_title)
                 .setMessage(message)
                 .setView(frame)
-                .setPositiveButton("Use this server", new DialogInterface.OnClickListener() {
+                .setPositiveButton(R.string.use_this_server, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         String typed = address.getText().toString();
@@ -645,18 +642,18 @@ public class StarlingActivity extends NativeActivity {
                             NativeMods.chooseBuildServer(StarlingActivity.this, typed);
                         } else {
                             Toast.makeText(StarlingActivity.this,
-                                    "That is not an https:// address. Nothing changed.",
+                                    getString(R.string.not_https),
                                     Toast.LENGTH_LONG).show();
                         }
                     }
                 })
-                .setNeutralButton("Use Starling's", new DialogInterface.OnClickListener() {
+                .setNeutralButton(R.string.use_starling_server, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         NativeMods.chooseBuildServer(StarlingActivity.this, null);
                     }
                 })
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
 
