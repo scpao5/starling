@@ -362,11 +362,65 @@ fn load_bitmap(
 }
 /// `TrueTypeGlyphProviderDefinition.load`: a TrueType file (not CFF) under
 /// `font/`, its Unicode characters but the `skip` ones.
+/// The device's own face with CJK glyphs, read from `/system/fonts`: the skin's hand has none, so
+/// Chinese, Japanese and Korean would draw as boxes. No file is named here, because no Android
+/// ships the same names — ColorOS, One UI, HyperOS and AOSP all differ — so the folder is
+/// walked and each face is asked whether it has 中. The first that does wins; the bytes are
+/// read once and kept for the process.
+fn device_cjk_font() -> Option<&'static [u8]> {
+    static FOUND: std::sync::OnceLock<Option<&'static [u8]>> = std::sync::OnceLock::new();
+    FOUND.get_or_init(|| {
+        let dir = std::fs::read_dir("/system/fonts").ok()?;
+        let mut candidates: Vec<PathBuf> = dir
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| {
+                matches!(
+                    p.extension().and_then(|e| e.to_str()),
+                    Some("ttf" | "otf" | "ttc")
+                )
+            })
+            .collect();
+        // A face named for Chinese first, so one is found without reading every file whole.
+        candidates.sort_by_key(|p| {
+            let n = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+            let named = n.contains("cjk") || n.contains("han") || n.contains("sc") || n.contains("chinese");
+            (!named, std::cmp::Reverse(n.len()))
+        });
+        for path in candidates {
+            let Ok(data) = std::fs::read(&path) else {
+                continue;
+            };
+            if data.starts_with(b"OTTO") || data.starts_with(b"ttcf") {
+                continue;
+            }
+            let Ok(face) = ab_glyph::FontVec::try_from_vec(data.clone()) else {
+                continue;
+            };
+            use ab_glyph::Font as _;
+            if face.glyph_id('中').0 != 0 && face.glyph_id('国').0 != 0 {
+                log::info!("Horizon: {} draws the CJK glyphs the skin has none for", path.display());
+                return Some(Box::leak(data.into_boxed_slice()) as &'static [u8]);
+            }
+        }
+        log::warn!("Horizon: no face under /system/fonts has CJK glyphs");
+        None
+    })
+    .as_ref()
+    .copied()
+}
+
 fn load_true_type(root: &Path, p: &serde_json::Value) -> Option<TrueType> {
     let file = p["file"].as_str()?;
-    let data = std::fs::read(root.join(resource_path(file, "font", "")))
-        .map_err(|e| log::warn!("font file {file}: {e}"))
-        .ok()?;
+    // `system:cjk` asks for the device's own Chinese face, found by what it draws rather than by
+    // what it is called: the pack carries none, and twenty megabytes would not fit in it.
+    let data = if file == "system:cjk" {
+        device_cjk_font()?.to_vec()
+    } else {
+        std::fs::read(root.join(resource_path(file, "font", "")))
+            .map_err(|e| log::warn!("font file {file}: {e}"))
+            .ok()?
+    };
     // FT_Get_Font_Format must say TrueType: CFF outlines ("OTTO") are refused.
     if data.starts_with(b"OTTO") {
         log::warn!("font file {file} is not in TTF format");

@@ -19,6 +19,16 @@
     "`abcdefghijklmno",
     "pqrstuvwxyz{|}~\u0000"
    ]
+  },
+  {
+   "type": "ttf",
+   "file": "system:cjk",
+   "size": 11,
+   "oversample": 2,
+   "shift": [
+    0,
+    1
+   ]
   }
  ]
 }

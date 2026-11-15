@@ -230,14 +230,20 @@ def main():
         if take == 0:
             font = {"providers": [{"type": "space", "advances": {" ": 4}}, provider]}
         else:
-            font = {"providers": [{"type": "space", "advances": {" ": 4}}, provider]}
+            font = {"providers": [{"type": "space", "advances": {" ": 4}}, provider,
+                                  {"type": "ttf", "file": "system:cjk", "size": 11, "oversample": 2,
+                                   "shift": [0, 1]}]}
             path = OUT / "assets" / "starling" / "font" / f"hand_{take}.json"
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(font, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
             takes.append(f"starling:hand_{take}")
+    # The hand is ASCII only, so every other script falls to the device's own face, found at
+    # runtime by what it draws (`system:cjk`): Chinese, Japanese and Korean are not boxes.
     default = {"providers": [{"type": "space", "advances": {" ": 4}},
                              {"type": "bitmap", "file": "minecraft:font/hand_0.png", "height": 10, "ascent": 8,
-                              "chars": letters(0)[1]}],
+                              "chars": letters(0)[1]},
+                             {"type": "ttf", "file": "system:cjk", "size": 11, "oversample": 2,
+                              "shift": [0, 1]}],
                "starling:variants": takes}
     path = OUT / "assets" / "minecraft" / "font" / "default.json"
     path.parent.mkdir(parents=True, exist_ok=True)
