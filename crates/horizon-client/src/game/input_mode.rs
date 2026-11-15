@@ -9,7 +9,8 @@ use horizon_client::input_mode::InputMode;
 #[cfg(target_os = "android")]
 use winit::{
     dpi::PhysicalPosition,
-    event::{DeviceId, ElementState, MouseScrollDelta, TouchPhase, WindowEvent},
+    event::{DeviceId, ElementState, KeyEvent, MouseScrollDelta, TouchPhase, WindowEvent},
+    keyboard::{Key, KeyCode, KeyLocation, NamedKey, PhysicalKey},
 };
 
 impl Game<'_> {
@@ -50,6 +51,42 @@ impl Game<'_> {
         if crate::android::keyboard_used() {
             self.input_used(InputMode::KeyboardMouse);
         }
+        // The launcher's on-screen buttons, as the keys of a computer's keyboard. They go
+        // through the same path a winit key event does, so key binds and screens see one kind of
+        // event only.
+        let keys = crate::android::take_keys();
+        if !keys.is_empty() {
+            self.input_used(InputMode::KeyboardMouse);
+            if let Some(id) = self.window.as_ref().map(|w| w.id()) {
+                let device_id = DeviceId::dummy();
+                for key in keys {
+                    let code = key_code(key.name);
+                    let logical = match key.text {
+                        Some(c) => Key::Character(c.to_string().into()),
+                        None => Key::Named(named_key(code)),
+                    };
+                    let event = KeyEvent {
+                        physical_key: PhysicalKey::Code(code),
+                        logical_key: logical,
+                        text: key.text.map(|c| c.to_string().into()),
+                        location: KeyLocation::Standard,
+                        state: if key.down {
+                            ElementState::Pressed
+                        } else {
+                            ElementState::Released
+                        },
+                        repeat: false,
+                        platform_specific: Default::default(),
+                    };
+                    self.handle_window_event(
+                        event_loop,
+                        id,
+                        WindowEvent::KeyboardInput { device_id, event, is_synthetic: true },
+                        InputOrigin::User,
+                    );
+                }
+            }
+        }
         let events = crate::android::take_mouse_events();
         if events.is_empty() {
             return;
@@ -86,5 +123,100 @@ impl Game<'_> {
             };
             self.handle_window_event(event_loop, id, event, InputOrigin::User);
         }
+    }
+}
+
+/// The `KeyCode` a launcher's control named (android::input::KeyPress, whose names are the
+/// variants this build knows). An unknown name presses nothing: the launcher's own set is fixed
+/// and the engine filters it in android_lib.rs already.
+#[cfg(target_os = "android")]
+fn key_code(name: &str) -> KeyCode {
+    match name {
+        "KeyA" => KeyCode::KeyA,
+        "KeyB" => KeyCode::KeyB,
+        "KeyC" => KeyCode::KeyC,
+        "KeyD" => KeyCode::KeyD,
+        "KeyE" => KeyCode::KeyE,
+        "KeyF" => KeyCode::KeyF,
+        "KeyG" => KeyCode::KeyG,
+        "KeyH" => KeyCode::KeyH,
+        "KeyI" => KeyCode::KeyI,
+        "KeyJ" => KeyCode::KeyJ,
+        "KeyK" => KeyCode::KeyK,
+        "KeyL" => KeyCode::KeyL,
+        "KeyM" => KeyCode::KeyM,
+        "KeyN" => KeyCode::KeyN,
+        "KeyO" => KeyCode::KeyO,
+        "KeyP" => KeyCode::KeyP,
+        "KeyQ" => KeyCode::KeyQ,
+        "KeyR" => KeyCode::KeyR,
+        "KeyS" => KeyCode::KeyS,
+        "KeyT" => KeyCode::KeyT,
+        "KeyU" => KeyCode::KeyU,
+        "KeyV" => KeyCode::KeyV,
+        "KeyW" => KeyCode::KeyW,
+        "KeyX" => KeyCode::KeyX,
+        "KeyY" => KeyCode::KeyY,
+        "KeyZ" => KeyCode::KeyZ,
+        "Digit0" => KeyCode::Digit0,
+        "Digit1" => KeyCode::Digit1,
+        "Digit2" => KeyCode::Digit2,
+        "Digit3" => KeyCode::Digit3,
+        "Digit4" => KeyCode::Digit4,
+        "Digit5" => KeyCode::Digit5,
+        "Digit6" => KeyCode::Digit6,
+        "Digit7" => KeyCode::Digit7,
+        "Digit8" => KeyCode::Digit8,
+        "Digit9" => KeyCode::Digit9,
+        "Space" => KeyCode::Space,
+        "ShiftLeft" => KeyCode::ShiftLeft,
+        "ShiftRight" => KeyCode::ShiftRight,
+        "ControlLeft" => KeyCode::ControlLeft,
+        "ControlRight" => KeyCode::ControlRight,
+        "AltLeft" => KeyCode::AltLeft,
+        "AltRight" => KeyCode::AltRight,
+        "Enter" => KeyCode::Enter,
+        "Escape" => KeyCode::Escape,
+        "Tab" => KeyCode::Tab,
+        "Backspace" => KeyCode::Backspace,
+        "F1" => KeyCode::F1,
+        "F2" => KeyCode::F2,
+        "F3" => KeyCode::F3,
+        "F4" => KeyCode::F4,
+        "F5" => KeyCode::F5,
+        "ArrowUp" => KeyCode::ArrowUp,
+        "ArrowDown" => KeyCode::ArrowDown,
+        "ArrowLeft" => KeyCode::ArrowLeft,
+        "ArrowRight" => KeyCode::ArrowRight,
+        "PageUp" => KeyCode::PageUp,
+        "PageDown" => KeyCode::PageDown,
+        _ => KeyCode::Space,
+    }
+}
+
+/// The named key a `KeyCode` is also known by, for a press that types nothing.
+#[cfg(target_os = "android")]
+fn named_key(code: KeyCode) -> NamedKey {
+    match code {
+        KeyCode::Space => NamedKey::Space,
+        KeyCode::Enter => NamedKey::Enter,
+        KeyCode::Escape => NamedKey::Escape,
+        KeyCode::Tab => NamedKey::Tab,
+        KeyCode::Backspace => NamedKey::Backspace,
+        KeyCode::ShiftLeft | KeyCode::ShiftRight => NamedKey::Shift,
+        KeyCode::ControlLeft | KeyCode::ControlRight => NamedKey::Control,
+        KeyCode::AltLeft | KeyCode::AltRight => NamedKey::Alt,
+        KeyCode::F1 => NamedKey::F1,
+        KeyCode::F2 => NamedKey::F2,
+        KeyCode::F3 => NamedKey::F3,
+        KeyCode::F4 => NamedKey::F4,
+        KeyCode::F5 => NamedKey::F5,
+        KeyCode::ArrowUp => NamedKey::ArrowUp,
+        KeyCode::ArrowDown => NamedKey::ArrowDown,
+        KeyCode::ArrowLeft => NamedKey::ArrowLeft,
+        KeyCode::ArrowRight => NamedKey::ArrowRight,
+        KeyCode::PageUp => NamedKey::PageUp,
+        KeyCode::PageDown => NamedKey::PageDown,
+        _ => NamedKey::Unidentified,
     }
 }

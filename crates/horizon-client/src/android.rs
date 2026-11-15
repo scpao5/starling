@@ -687,6 +687,18 @@ mod input {
     /// The most mouse events kept for a game that is not reading them (a save on quit).
     const MOUSE_QUEUE: usize = 512;
 
+    /// A key the launcher's own on-screen controls pressed, for the game's next loop iteration
+    /// (game/input_mode.rs). The engine draws no touch controls of its own when a launcher
+    /// provides them, so this is how those buttons reach the game.
+    pub struct KeyPress {
+        /// The winit `KeyCode` as its `u32` (a `KeyCode::KeyW`'s discriminant is not stable, so
+        /// the name is what crosses: see `key_from_name`).
+        pub name: &'static str,
+        pub down: bool,
+        /// A character typed, for chat and signs (`None` for a key that types nothing).
+        pub text: Option<char>,
+    }
+
     /// What a mouse did, for the game's next loop iteration (game/input_mode.rs).
     pub enum MouseEvent {
         /// The pointer moved to this window position, in pixels.
@@ -707,6 +719,11 @@ mod input {
         buttons: u32,
         at: Option<(f32, f32)>,
     }
+
+    /// The keys a launcher's on-screen controls pressed, waiting for the game's next iteration.
+    static KEYS: Mutex<Vec<KeyPress>> = Mutex::new(Vec::new());
+    /// The most key presses kept for a game that is not reading them.
+    const KEY_QUEUE: usize = 64;
 
     static PADS: Mutex<AndroidPads> = Mutex::new(AndroidPads::new());
     static MOUSE: Mutex<Mouse> = Mutex::new(Mouse {
@@ -839,13 +856,39 @@ mod input {
         std::mem::take(&mut mouse.events)
     }
 
+    /// A mouse event from the launcher's on-screen controls (StarlingActivity.sendMouse*,
+    /// android_lib.rs): the same queue winit's own events go to, so the game cannot tell them
+    /// apart from a computer's mouse.
+    pub fn push_mouse(event: MouseEvent) {
+        let mut mouse = MOUSE.lock().unwrap_or_else(|e| e.into_inner());
+        if mouse.events.len() < MOUSE_QUEUE {
+            mouse.events.push(event);
+        }
+    }
+
     /// Whether a physical keyboard's key went down since the last call.
     pub fn keyboard_used() -> bool {
         KEYBOARD_USED.swap(false, Ordering::Relaxed)
     }
+
+    /// The keys a launcher's on-screen controls pressed since the last call, oldest first.
+    pub fn take_keys() -> Vec<KeyPress> {
+        std::mem::take(&mut *KEYS.lock().unwrap_or_else(|e| e.into_inner()))
+    }
+
+    /// A key press from the launcher (StarlingActivity.sendKey, android_lib.rs). Dropped when the
+    /// queue is full, as a phone drops a touch it cannot deliver in time.
+    pub fn push_key(name: &'static str, down: bool, text: Option<char>) {
+        let mut keys = KEYS.lock().unwrap_or_else(|e| e.into_inner());
+        if keys.len() < KEY_QUEUE {
+            keys.push(KeyPress { name, down, text });
+        }
+    }
 }
 
-pub use input::{MouseEvent, keyboard_used, pad_state, take_mouse_events};
+pub use input::{
+    KeyPress, MouseEvent, keyboard_used, pad_state, push_mouse, take_keys, take_mouse_events,
+};
 
 /// Android took the captured pointer back while the game held it (StarlingActivity).
 static POINTER_LOST: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);

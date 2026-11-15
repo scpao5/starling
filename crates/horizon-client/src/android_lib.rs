@@ -98,6 +98,158 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_onPointerCa
     horizon_client::android::note_pointer_capture_lost();
 }
 
+/// The launcher's on-screen controls: `StarlingActivity.sendMouseMove/Button/Wheel`
+/// (packaging/android/java). They feed the same queue winit's own mouse events go to
+/// (android::input), so the game reads them as a computer's mouse.
+#[unsafe(no_mangle)]
+extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_sendMouseMove(
+    _env: *mut std::ffi::c_void,
+    _class: *mut std::ffi::c_void,
+    x: jni::sys::jfloat,
+    y: jni::sys::jfloat,
+) {
+    horizon_client::android::push_mouse(horizon_client::android::MouseEvent::Moved(
+        f64::from(x),
+        f64::from(y),
+    ));
+}
+
+/// `button`: 1 left, 2 right, 3 middle (the engine's own numbering, see `android::input`).
+#[unsafe(no_mangle)]
+extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_sendMouseButton(
+    _env: *mut std::ffi::c_void,
+    _class: *mut std::ffi::c_void,
+    button: jni::sys::jint,
+    down: jni::sys::jboolean,
+) {
+    let button = match button {
+        1 => winit::event::MouseButton::Left,
+        2 => winit::event::MouseButton::Right,
+        _ => winit::event::MouseButton::Middle,
+    };
+    horizon_client::android::push_mouse(horizon_client::android::MouseEvent::Button(
+        button,
+        down != 0,
+    ));
+}
+
+#[unsafe(no_mangle)]
+extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_sendMouseWheel(
+    _env: *mut std::ffi::c_void,
+    _class: *mut std::ffi::c_void,
+    x: jni::sys::jfloat,
+    y: jni::sys::jfloat,
+) {
+    horizon_client::android::push_mouse(horizon_client::android::MouseEvent::Wheel(x, y));
+}
+
+/// How far the pointer went while the launcher's own control drove it: the view turns by it.
+#[unsafe(no_mangle)]
+extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_sendMouseMotion(
+    _env: *mut std::ffi::c_void,
+    _class: *mut std::ffi::c_void,
+    dx: jni::sys::jfloat,
+    dy: jni::sys::jfloat,
+) {
+    horizon_client::android::push_mouse(horizon_client::android::MouseEvent::Motion(
+        f64::from(dx),
+        f64::from(dy),
+    ));
+}
+
+/// `name` is a `winit::keyboard::KeyCode` variant name ("KeyW", "Space"): the launcher's
+/// controls name the key they press, and the engine looks the name up.
+#[unsafe(no_mangle)]
+extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_sendKey(
+    mut env: jni::JNIEnv,
+    _class: *mut std::ffi::c_void,
+    name: jni::objects::JString,
+    down: jni::sys::jboolean,
+    text: jni::sys::jint,
+) {
+    if name.is_null() {
+        return;
+    }
+    let Ok(name) = env.get_string(&name) else {
+        return;
+    };
+    let name = String::from(name);
+    // The queue keeps &'static str, and the set is fixed, so a known name is looked up once.
+    let Some(name) = key_code_name(&name) else {
+        return;
+    };
+    // 0 stands for "types nothing"; anything else is that code point.
+    let text = char::from_u32(text as u32).filter(|_| text != 0);
+    horizon_client::android::push_key(name, down != 0, text);
+}
+
+/// The `'static` name of a `KeyCode`, for the names a launcher's controls use. A launcher names
+/// the key by what is printed on it, so this is the whole set it may ask for.
+fn key_code_name(name: &str) -> Option<&'static str> {
+    use winit::keyboard::KeyCode;
+    const NAMES: &[(&str, KeyCode)] = &[
+        ("KeyA", KeyCode::KeyA),
+        ("KeyB", KeyCode::KeyB),
+        ("KeyC", KeyCode::KeyC),
+        ("KeyD", KeyCode::KeyD),
+        ("KeyE", KeyCode::KeyE),
+        ("KeyF", KeyCode::KeyF),
+        ("KeyG", KeyCode::KeyG),
+        ("KeyH", KeyCode::KeyH),
+        ("KeyI", KeyCode::KeyI),
+        ("KeyJ", KeyCode::KeyJ),
+        ("KeyK", KeyCode::KeyK),
+        ("KeyL", KeyCode::KeyL),
+        ("KeyM", KeyCode::KeyM),
+        ("KeyN", KeyCode::KeyN),
+        ("KeyO", KeyCode::KeyO),
+        ("KeyP", KeyCode::KeyP),
+        ("KeyQ", KeyCode::KeyQ),
+        ("KeyR", KeyCode::KeyR),
+        ("KeyS", KeyCode::KeyS),
+        ("KeyT", KeyCode::KeyT),
+        ("KeyU", KeyCode::KeyU),
+        ("KeyV", KeyCode::KeyV),
+        ("KeyW", KeyCode::KeyW),
+        ("KeyX", KeyCode::KeyX),
+        ("KeyY", KeyCode::KeyY),
+        ("KeyZ", KeyCode::KeyZ),
+        ("Digit0", KeyCode::Digit0),
+        ("Digit1", KeyCode::Digit1),
+        ("Digit2", KeyCode::Digit2),
+        ("Digit3", KeyCode::Digit3),
+        ("Digit4", KeyCode::Digit4),
+        ("Digit5", KeyCode::Digit5),
+        ("Digit6", KeyCode::Digit6),
+        ("Digit7", KeyCode::Digit7),
+        ("Digit8", KeyCode::Digit8),
+        ("Digit9", KeyCode::Digit9),
+        ("Space", KeyCode::Space),
+        ("ShiftLeft", KeyCode::ShiftLeft),
+        ("ShiftRight", KeyCode::ShiftRight),
+        ("ControlLeft", KeyCode::ControlLeft),
+        ("ControlRight", KeyCode::ControlRight),
+        ("AltLeft", KeyCode::AltLeft),
+        ("AltRight", KeyCode::AltRight),
+        ("Enter", KeyCode::Enter),
+        ("Escape", KeyCode::Escape),
+        ("Tab", KeyCode::Tab),
+        ("Backspace", KeyCode::Backspace),
+        ("F1", KeyCode::F1),
+        ("F2", KeyCode::F2),
+        ("F3", KeyCode::F3),
+        ("F4", KeyCode::F4),
+        ("F5", KeyCode::F5),
+        ("ArrowUp", KeyCode::ArrowUp),
+        ("ArrowDown", KeyCode::ArrowDown),
+        ("ArrowLeft", KeyCode::ArrowLeft),
+        ("ArrowRight", KeyCode::ArrowRight),
+        ("PageUp", KeyCode::PageUp),
+        ("PageDown", KeyCode::PageDown),
+    ];
+    NAMES.iter().find(|(n, _)| *n == name).map(|(n, _)| *n)
+}
+
 /// The system diagnostics window calls this on its worker, without starting the game.
 #[unsafe(no_mangle)]
 extern "system" fn Java_io_github_juanluci_starling_DiagnosticsActivity_makeReport(
