@@ -10,6 +10,6 @@
     <string name="use_starling_server">使用 Starling 的</string>
     <string name="not_https">这不是一个 https:// 地址。未做任何更改。</string>
     <string name="horizon_bringing">Bringing your worlds over from Horizon Android</string>
-    <string name="horizon_not_folder">That is not Horizon Android's folder: pick Horizon in the list of places</string>
-    <string name="horizon_cannot_read">Could not read Horizon Android's files: close Horizon Android, then try again</string>
+    <string name="horizon_not_folder">That is not Horizon Android\'s folder: pick Horizon in the list of places</string>
+    <string name="horizon_cannot_read">Could not read Horizon Android\'s files: close Horizon Android, then try again</string>
 </resources>
