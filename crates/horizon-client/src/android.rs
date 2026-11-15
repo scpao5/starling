@@ -939,13 +939,15 @@ pub fn args() -> Vec<String> {
     ARGS.get().cloned().unwrap_or_default()
 }
 
-/// The game's command line and environment: `--resources` in the game folder, then
-/// `horizon-args.txt` there (written over adb for tests), which may override it: one argument per
-/// line, or `NAME=value` for an environment variable (`HORIZON_GPU_CULL=0`, `WGPU_BACKEND=...`).
-fn command_line(home: &Path) -> (Vec<String>, Vec<(String, String)>) {
+/// The game's command line and environment: `--resources` in the app's own files, then
+/// `horizon-args.txt` in the game folder, which may override it: one argument per line, or `NAME=value` for an
+/// environment variable (`HORIZON_GPU_CULL=0`, `WGPU_BACKEND=...`). It sits in the folder a file
+/// manager reaches, so a phone with no command line can still start the dedicated server
+/// (`--dedicated --nogui --control`).
+fn command_line(home: &Path, private: &Path) -> (Vec<String>, Vec<(String, String)>) {
     let mut args = vec![
         "--resources".to_owned(),
-        home.join("resources").display().to_string(),
+        private.join("resources").display().to_string(),
     ];
     let mut env = Vec::new();
     let text = std::fs::read_to_string(home.join("horizon-args.txt")).unwrap_or_default();
@@ -1243,7 +1245,7 @@ pub fn main(app: AndroidApp) {
     let _ = std::fs::create_dir_all(&private);
     let mut notes = Vec::new();
     let home = game_folder(&private, &mut notes);
-    let (args, env) = command_line(&private);
+    let (args, env) = command_line(&home, &private);
     // SAFETY: no other thread of ours runs yet; the game reads these from its threads afterwards.
     unsafe {
         std::env::set_var("HORIZON_HOME", &home);
@@ -1352,7 +1354,7 @@ pub fn recovery_report(
     game: &Path,
     export: bool,
 ) -> Result<String, String> {
-    let (args, _) = command_line(private);
+    let (args, _) = command_line(game, private);
     let value = |flag: &str| {
         args.windows(2).find(|pair| pair[0] == flag).map(|pair| {
             let path = PathBuf::from(&pair[1]);
