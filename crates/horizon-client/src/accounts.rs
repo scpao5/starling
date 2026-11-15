@@ -566,7 +566,8 @@ pub fn download_files() {
         let _working = working;
         let result = (|| {
             let root = files_root();
-            let _ = std::fs::remove_file(root.join(FILES_DONE));
+            // The marker stays until this run has fetched everything: a run cut short leaves it,
+            // and the next start finds the files it got instead of starting over.
             let progress = |p: Progress| {
                 let mut s = shared();
                 if matches!(s.files, Files::Checking | Files::Downloading(_)) {
