@@ -1079,7 +1079,9 @@ pub fn apply_preset(preset: Preset, s: &mut crate::settings::Settings) {
 pub fn apply_mobile_defaults(tier: crate::system_stats::Tier, s: &mut crate::settings::Settings) {
     use crate::system_stats::Tier;
     let high = tier == Tier::High;
-    s.max_fps = 60;
+    // A fast phone is not held at 60 frames: an uncapped frame rate lets its display run at its
+    // own rate, and the frame cap stays the player's choice (Options, or `maxFps`).
+    s.max_fps = if high { 260 } else { 60 };
     s.render_distance = match tier {
         Tier::High => 10,
         Tier::Mid => 8,
@@ -1115,6 +1117,9 @@ pub fn apply_mobile_defaults(tier: crate::system_stats::Tier, s: &mut crate::set
     } else {
         FarDetail::Reduced
     };
+    // VSync is what holds a fast phone at its display's rate and hides the frame rate the GPU
+    // can make: off by default, as the frame cap already keeps the GPU from running flat out.
+    s.vsync = false;
 }
 
 #[cfg(test)]
@@ -1135,7 +1140,7 @@ mod tests {
         apply_mobile_defaults(Tier::Low, &mut low);
         let mut high = crate::settings::Settings::default();
         apply_mobile_defaults(Tier::High, &mut high);
-        assert_eq!((low.max_fps, high.max_fps), (60, 60));
+        assert_eq!((low.max_fps, high.max_fps), (60, 260));
         assert!(low.render_distance < high.render_distance);
         assert_eq!(
             (low.clouds.as_str(), high.clouds.as_str()),

@@ -2276,7 +2276,9 @@ impl Renderer {
                 width: size.width.clamp(1, max_side),
                 height: size.height.clamp(1, max_side),
                 present_mode: wgpu::PresentMode::Immediate,
-                desired_maximum_frame_latency: 2,
+                // One frame in flight: the GPU is not queued two frames behind, so a frame's
+                // work reaches the screen at once and the frame time reads as it is.
+                desired_maximum_frame_latency: 1,
                 alpha_mode: wgpu::CompositeAlphaMode::Opaque,
                 view_formats: vec![format],
                 color_space: wgpu::SurfaceColorSpace::default(),
