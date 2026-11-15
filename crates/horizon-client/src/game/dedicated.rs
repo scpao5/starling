@@ -273,6 +273,49 @@ pub(super) fn log(level: &str, message: &str) {
 }
 
 /// A line from another of vanilla's threads (the login's User Authenticator).
+/// `console.txt` in the game folder, read to its end: the lines added since the last call, each
+/// run as a console command. The file is created empty at the server's start, so a reader that
+/// does not exist yet is not an error.
+fn take_console_lines() -> Vec<String> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static READ: AtomicU64 = AtomicU64::new(0);
+    let path = crate::logging::game_home().join("console.txt");
+    let Ok(meta) = std::fs::metadata(&path) else {
+        return Vec::new();
+    };
+    let end = meta.len();
+    let mut seen = READ.load(Ordering::Relaxed);
+    // A shorter file was written anew (the player cleared it): start over.
+    if end < seen {
+        seen = 0;
+    }
+    if end == seen {
+        return Vec::new();
+    }
+    use std::io::{Read as _, Seek as _, SeekFrom};
+    let Ok(mut file) = std::fs::File::open(&path) else {
+        return Vec::new();
+    };
+    if file.seek(SeekFrom::Start(seen)).is_err() {
+        return Vec::new();
+    }
+    let mut text = String::new();
+    if file.take(end - seen).read_to_string(&mut text).is_err() {
+        // A line half written (no newline yet): keep it for the next pass.
+        return Vec::new();
+    }
+    let complete = text.rfind('\n').map(|i| i + 1).unwrap_or(0);
+    if complete == 0 {
+        return Vec::new();
+    }
+    READ.store(seen + complete as u64, Ordering::Relaxed);
+    text[..complete]
+        .lines()
+        .map(|l| l.trim().to_owned())
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .collect()
+}
+
 fn log_from(thread: &str, level: &str, message: &str) {
     let file_level = match level {
         "WARN" => ::log::Level::Warn,
@@ -297,6 +340,22 @@ fn log_from(thread: &str, level: &str, message: &str) {
 thread_local! {
     /// The lines logged while a control request runs a console command.
     static CAPTURE: std::cell::RefCell<Option<Vec<String>>> = const { std::cell::RefCell::new(None) };
+}
+
+/// `console.txt` in the game folder: created when the server starts, so a player who opens it
+/// sees where to type a command (`op Steve`), and the server runs what is added.
+fn start_console_file() {
+    let path = crate::logging::game_home().join("console.txt");
+    if path.exists() {
+        return;
+    }
+    let _ = std::fs::write(
+        &path,
+        "# Lines starting with # are ignored. One command per line, e.g.\n\
+         #   op Steve\n\
+         #   list\n\
+         #   stop\n",
+    );
 }
 
 /// Runs `f` and returns the lines it logged.
@@ -746,6 +805,7 @@ impl Game<'_> {
         if new_world {
             self.write_world_gen(&world_dir, &props)?;
         }
+        start_console_file();
         // The console thread starts first, as in initServer.
         let (tx, console) = mpsc::channel();
         std::thread::Builder::new()
@@ -1084,6 +1144,11 @@ impl Game<'_> {
             // (`handleConsoleInputs`): a panic there is the same crash.
             let prelude = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 while let Ok(line) = state.console.try_recv() {
+                    self.console_line(&mut state, &line);
+                }
+                // A phone has no standard input: the console's lines come from `console.txt` in
+                // the game folder, which a file manager or another app appends to.
+                for line in take_console_lines() {
                     self.console_line(&mut state, &line);
                 }
                 self.poll_server_control(&mut state);

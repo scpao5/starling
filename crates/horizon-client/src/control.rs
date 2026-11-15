@@ -226,7 +226,10 @@ pub fn default_path() -> PathBuf {
         return path.into();
     }
     if cfg!(target_os = "android") {
-        return crate::logging::private_home().join("horizon-control.json");
+        // The game folder, which a file manager reaches: the port and token are written there,
+        // so another app or a shell can drive the server. Its path ends in `.json`, which is
+        // what makes the endpoint a localhost TCP port on a phone (there is no shared /tmp).
+        return crate::logging::game_home().join("horizon-control.json");
     }
     if !cfg!(unix) {
         return std::env::temp_dir().join("horizon-control.json");
