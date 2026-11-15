@@ -21,15 +21,16 @@ static ARGS: OnceLock<Vec<String>> = OnceLock::new();
 /// Shared storage's Starling folder, when the player allowed the app to use it.
 static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();
 
+/// The environment variable that carries the shared folder to every crate reading it: the game
+/// files' root is worked out in `accounts.rs`, which other crates include without having an
+/// `android` module of their own.
+const SHARED_FOLDER_VAR: &str = "STARLING_SHARED_FOLDER";
+
 /// `StarlingActivity.onStorage`, called on the UI thread before the game's thread starts.
 pub fn set_shared_folder(folder: PathBuf) {
+    // SAFETY: set before the game's threads start, on the UI thread that calls this.
+    unsafe { std::env::set_var(SHARED_FOLDER_VAR, &folder) };
     let _ = SHARED_FOLDER.set(folder);
-}
-
-/// The shared folder the player allowed (`Starling`, `StarlingDev`, `StarlingPreview`), or None
-/// when they have not: the game files live under it, so a reinstall finds them.
-pub fn shared_folder() -> Option<&'static Path> {
-    SHARED_FOLDER.get().map(PathBuf::as_path)
 }
 
 /// NativeActivity's entry point (the manifest's `android.app.func_name`, through the cdylib's

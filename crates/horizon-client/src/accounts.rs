@@ -34,14 +34,23 @@ pub fn dir() -> PathBuf {
 /// a reinstall would otherwise fetch again stay put; the app's own files when they did not, or
 /// on a system without shared storage.
 pub fn files_root() -> PathBuf {
-    #[cfg(target_os = "android")]
-    if let Some(shared) = crate::android::shared_folder() {
-        let dir = shared.join("minecraft");
-        if std::fs::create_dir_all(&dir).is_ok() {
-            return dir;
-        }
+    if let Some(dir) = shared_files_root() {
+        return dir;
     }
     crate::logging::private_home().join("minecraft")
+}
+
+/// `Starling/minecraft` in shared storage, when the player allowed it and it can be written: the
+/// path comes from the environment, so this file works in every crate that includes it (the
+/// game, the lib, the parity probes) without one of them having an `android` module.
+fn shared_files_root() -> Option<PathBuf> {
+    let shared = std::env::var_os("STARLING_SHARED_FOLDER")?;
+    if shared.is_empty() {
+        return None;
+    }
+    let dir = PathBuf::from(shared).join("minecraft");
+    std::fs::create_dir_all(&dir).ok()?;
+    Some(dir)
 }
 
 /// The server jar the last complete download fetched, for the preparer (preparer.rs).
