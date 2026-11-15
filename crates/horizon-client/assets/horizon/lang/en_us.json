@@ -649,5 +649,6 @@
   "starling.account.setup.preparing.body": "This takes a few minutes. Keep Starling open.",
   "starling.account.setup.done.title": "Starting Starling",
   "starling.account.setup.done.body": "The game files are ready.",
-  "starling.account.setup.failed.title": "Something went wrong"
+  "starling.account.setup.failed.title": "Something went wrong",
+  "starling.dedicated.button": "Run as Server..."
 }

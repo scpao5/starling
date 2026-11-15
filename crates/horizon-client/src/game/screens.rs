@@ -68,6 +68,7 @@ fn pause_buttons(
     links: bool,
     additions: bool,
     split: bool,
+    dedicated_allowed: bool,
 ) -> Vec<(f32, f32, f32, &'static str, u8, bool)> {
     let row3 = links || additions;
     let (x0, y0) = pause_grid(w, h, u8::from(row3) + u8::from(split));
@@ -88,6 +89,12 @@ fn pause_buttons(
     if split {
         let y = y0 + 122.0 + if row3 { 24.0 } else { 0.0 };
         v.push((x0 + 4.0, y, 204.0, SPLIT_SETTINGS, 30, true));
+    }
+    // Starling: a phone has no command line, so the world can be handed to a dedicated
+    // server from here (`horizon-args.txt`, read at the next start).
+    if dedicated_allowed {
+        let extra = u8::from(row3) + u8::from(split);
+        v.push((x0 + 4.0, y0 + 146.0 + 24.0 * extra, 204.0, DEDICATED_BUTTON, 31, true));
     }
     v.extend([
         (x0 + 4.0, y0 + 122.0 + down, 98.0, "menu.options", 1, true),
@@ -119,6 +126,9 @@ fn pause_buttons(
 /// `FRIENDS_ICON` (vanilla's `CommonButtons.friends`) opens Horizon's
 /// Play with Friends; the first two open their link through
 /// `ConfirmLinkScreen`; player reporting opens `SocialInteractionsScreen`.
+/// The button that hands the world to a dedicated server (Starling's own; vanilla has no
+/// command line to need it for).
+const DEDICATED_BUTTON: &str = "starling.dedicated.button";
 const FRIENDS_ICON: usize = 2;
 /// `CommonLinks.SNAPSHOT_BUGS_FEEDBACK`, behind `PauseScreen.REPORT_BUGS`.
 const BUGS_LINK: &str = "https://aka.ms/snapshotbugs?ref=game";
@@ -258,6 +268,7 @@ impl Game<'_> {
             links,
             additions.is_some(),
             self.options.split_guest || self.split_hud.menu,
+            self.dedicated_offer(),
         ) {
             let is_focused = self.pause_focus == Some(id);
             let hover = active && (ui::hovered(self.cursor, x, y, bw, 20.0) || is_focused);
@@ -280,6 +291,7 @@ impl Game<'_> {
             links,
             additions.is_some(),
             self.options.split_guest || self.split_hud.menu,
+            self.dedicated_offer(),
         )
         .into_iter()
         .enumerate()
@@ -349,6 +361,46 @@ impl Game<'_> {
             ui::tooltip(batch, atlas, &lines, self.cursor);
         }
     }
+    /// Whether the dedicated-server button shows: a world of this window's own, run here, that
+    /// a phone's player can hand to a server (a guest of someone else's world cannot).
+    #[cfg(target_os = "android")]
+    fn dedicated_offer(&self) -> bool {
+        !self.external_server() && self.integrated.is_some()
+    }
+    #[cfg(not(target_os = "android"))]
+    fn dedicated_offer(&self) -> bool {
+        false
+    }
+    /// Hands the world to a dedicated server: `horizon-args.txt` in the game folder, read at the
+    /// next start, which opens this world with `--dedicated --nogui --control` on `0` (a free
+    /// port the server picks). The game ends here, as `--dedicated` replaces it.
+    #[cfg(target_os = "android")]
+    fn start_dedicated(&mut self) -> Result<()> {
+        let folder = crate::logging::game_home();
+        let world = self
+            .world_root
+            .file_name()
+            .map_or_else(|| "world".to_string(), |n| n.to_string_lossy().into_owned());
+        // `--universe saves`: the server opens `<universe>/<world>`, and the player's worlds are
+        // in the game folder's `saves`.
+        let text = format!(
+            "# Written by Starling: the world this game had open starts as a dedicated server.\n\
+             # Delete this file to start the game normally again.\n\
+             --dedicated\n--nogui\n--control\n--universe saves\n--port 25565\n--world {world}\n"
+        );
+        std::fs::write(folder.join("horizon-args.txt"), text)
+            .map_err(|e| format!("horizon-args.txt: {e}"))?;
+        log::info!(
+            "Starling: {world} starts as a dedicated server at the next start ({} says so)",
+            folder.join("horizon-args.txt").display()
+        );
+        Ok(())
+    }
+    #[cfg(not(target_os = "android"))]
+    fn start_dedicated(&mut self) -> Result<()> {
+        Ok(())
+    }
+
     pub(super) fn execute_pause_action(&mut self, hit: u8) -> Result<()> {
         match hit {
             0 => {
@@ -382,6 +434,7 @@ impl Game<'_> {
                     self.show_dialog(&dialog);
                 }
             }
+            31 => self.start_dedicated()?,
             2 => self.close_world()?,
             _ => {}
         }
@@ -413,6 +466,7 @@ impl Game<'_> {
             links,
             additions.is_some(),
             self.options.split_guest || self.split_hud.menu,
+            self.dedicated_offer(),
         )
         .into_iter()
         .find(|b| b.5 && ui::hovered(self.cursor, b.0, b.1, b.2, 20.0))
@@ -453,6 +507,7 @@ impl Game<'_> {
             links,
             self.pause_screen_additions().is_some(),
             self.options.split_guest || self.split_hud.menu,
+            self.dedicated_offer(),
         );
         let mut active_ids: Vec<u8> = buttons.into_iter().filter(|b| b.5).map(|b| b.4).collect();
         let friends = self.friends_view().shown;
@@ -501,6 +556,7 @@ impl Game<'_> {
                     links,
                     self.pause_screen_additions().is_some(),
                     self.options.split_guest || self.split_hud.menu,
+                    self.dedicated_offer(),
                 );
                 let mut rects: Vec<(u8, f32, f32, f32)> = buttons
                     .into_iter()
@@ -874,7 +930,7 @@ mod tests {
     #[test]
     fn pause_menu_uses_disconnect_for_servers_and_keeps_world_options() {
         for (remote, label) in [(false, "menu.returnToMenu"), (true, "menu.disconnect")] {
-            let buttons = pause_buttons(427.0, 240.0, remote, false, false, false);
+            let buttons = pause_buttons(427.0, 240.0, remote, false, false, false, false);
             let quit = buttons.iter().find(|b| b.4 == 2).unwrap();
             assert_eq!(quit.3, label);
             assert!(quit.5);
@@ -899,8 +955,8 @@ mod tests {
 
     #[test]
     fn server_links_adds_a_full_width_row_above_options() {
-        let with = pause_buttons(427.0, 240.0, true, true, false, false);
-        let without = pause_buttons(427.0, 240.0, true, false, false, false);
+        let with = pause_buttons(427.0, 240.0, true, true, false, false, false);
+        let without = pause_buttons(427.0, 240.0, true, false, false, false, false);
         let links = with.iter().find(|b| b.4 == 11).unwrap();
         assert_eq!(links.2, 204.0);
         assert_eq!(links.3, "menu.server_links");
@@ -922,8 +978,8 @@ mod tests {
     fn pause_screen_additions_takes_the_server_links_row() {
         // getCustomAdditions: one additions button in row 3, never next to the
         // links button, so the grid keeps one extra row either way.
-        let with = pause_buttons(427.0, 240.0, true, true, true, false);
-        let links = pause_buttons(427.0, 240.0, true, true, false, false);
+        let with = pause_buttons(427.0, 240.0, true, true, true, false, false);
+        let links = pause_buttons(427.0, 240.0, true, true, false, false, false);
         assert!(with.iter().all(|b| b.4 != 11));
         let button = with.iter().find(|b| b.4 == 14).unwrap();
         assert_eq!(
@@ -943,7 +999,7 @@ mod tests {
     #[test]
     fn split_settings_preserves_dialog_rows_and_icon_actions() {
         for (links, additions) in [(false, false), (true, false), (false, true), (true, true)] {
-            let buttons = pause_buttons(427.0, 300.0, true, links, additions, true);
+            let buttons = pause_buttons(427.0, 300.0, true, links, additions, true, false);
             let split = buttons.iter().find(|b| b.4 == 30).unwrap();
             let options = buttons.iter().find(|b| b.4 == 1).unwrap();
             assert_eq!(options.1, split.1 + 24.0);
@@ -956,7 +1012,7 @@ mod tests {
             }
             assert!(buttons.iter().all(|b| b.4 != 12 && b.4 != 13));
             assert!(
-                !pause_buttons(427.0, 300.0, true, links, additions, false)
+                !pause_buttons(427.0, 300.0, true, links, additions, false, false)
                     .iter()
                     .any(|b| b.4 == 30)
             );

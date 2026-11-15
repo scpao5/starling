@@ -282,16 +282,16 @@ fn mb(bytes: u64) -> String {
 }
 
 /// What the step says: title, body, and the line under it.
-fn texts(step: &Step) -> (&'static str, String, Option<String>) {
+fn texts(step: &Step) -> (String, String, Option<String>) {
     match step {
         #[cfg(target_os = "android")]
         Step::Folder(stage) => {
             let [title, body, ..] = super::files_offer::texts(*stage);
-            (title, body.into(), None)
+            (title.to_owned(), body.into(), None)
         }
         #[cfg(target_os = "android")]
         Step::Horizon(false) => (
-            "Coming from Horizon Android?",
+            "Coming from Horizon Android?".to_owned(),
             "Horizon Android is part of Starling now: bring your worlds and resource packs over. \
              Close Horizon Android first, then, in the folder that opens, tap Use this folder and \
              Allow."
@@ -304,14 +304,14 @@ fn texts(step: &Step) -> (&'static str, String, Option<String>) {
             tr("setup.horizon.body"),
             None,
         ),
-        Step::Start => ("Set up Starling", tr("setup.intro"), None),
+        Step::Start => ("Set up Starling".to_owned(), tr("setup.intro"), None),
         Step::Offline => (
             tr("setup.offline.title"),
             tr("setup.offline.body"),
             None,
         ),
-        Step::Talking(message) => ("Set up Starling", message.clone(), None),
-        Step::AccountForm => ("Set up Starling", String::new(), None),
+        Step::Talking(message) => ("Set up Starling".to_owned(), message.clone(), None),
+        Step::AccountForm => ("Set up Starling".to_owned(), String::new(), None),
         Step::Code { link, .. } => (
             tr("setup.code.title"),
             tr("setup.code.body").replace("{link}", link),
@@ -610,7 +610,7 @@ impl Loading {
         };
         ui.rounded(x, y, card_w, card_h, 14.0, card);
         ui.border(x, y, card_w, card_h, 14.0, color::BORDER);
-        ui.text(Face::Semibold, 18.0, x + pad, y + pad, color::TEXT, title);
+        ui.text(Face::Semibold, 18.0, x + pad, y + pad, color::TEXT, &title);
         let mut ty = y + pad + 26.0 + 12.0;
         for line in &lines {
             ui.text(Face::Regular, 14.0, x + pad, ty, color::MUTED, line);

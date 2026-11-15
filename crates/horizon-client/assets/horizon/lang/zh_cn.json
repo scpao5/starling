@@ -649,5 +649,6 @@
   "starling.account.setup.preparing.body": "这需要几分钟，请保持 Starling 打开。",
   "starling.account.setup.done.title": "正在启动 Starling",
   "starling.account.setup.done.body": "游戏文件已就绪。",
-  "starling.account.setup.failed.title": "出了点问题"
+  "starling.account.setup.failed.title": "出了点问题",
+  "starling.dedicated.button": "开服（专用服务器）…"
 }
