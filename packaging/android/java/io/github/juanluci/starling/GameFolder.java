@@ -29,10 +29,17 @@ final class GameFolder {
      *  resources, so this class needs one to read them. */
     static android.content.Context context;
 
-    /** `res` with `args` filled in, as the Files app shows it. */
-    private static String said(int res, Object... args) {
-        return context == null ? String.format(String.valueOf(res), args)
-                : context.getString(res, args);
+    /** The string resource `name` with `args` filled in, as the Files app shows it: looked up by
+     *  name rather than through R, because this class is compiled on its own by the checks that
+     *  compare its rules with android.rs, and R does not exist there. */
+    private static String said(String name, String english, Object... args) {
+        if (context != null) {
+            int id = context.getResources().getIdentifier(name, "string", context.getPackageName());
+            if (id != 0) {
+                return context.getString(id, args);
+            }
+        }
+        return String.format(english, args);
     }
 
     static final String ROOT = "starling";
@@ -199,7 +206,7 @@ final class GameFolder {
     String create(String parent, String name, boolean folder) throws IOException {
         File directory = file(parent);
         if (!takesNew(parent) || !validName(name) || !directory.isDirectory()) {
-            throw new IOException(said(R.string.folder_cannot_make, name, parent));
+            throw new IOException(said("folder_cannot_make", "Cannot make %1$s in %2$s", name, parent));
         }
         int dot = name.lastIndexOf('.');
         String stem = dot > 0 ? name.substring(0, dot) : name;
@@ -214,16 +221,16 @@ final class GameFolder {
                 return parent + "/" + free;
             }
             if (!Files.exists(file.toPath(), LinkOption.NOFOLLOW_LINKS)) {
-                throw new IOException(said(R.string.folder_cannot_make, name, parent));
+                throw new IOException(said("folder_cannot_make", "Cannot make %1$s in %2$s", name, parent));
             }
         }
-        throw new IOException(said(R.string.folder_no_free_name, name, parent));
+        throw new IOException(said("folder_no_free_name", "No free name for %1$s in %2$s", name, parent));
     }
 
     /** A new name in the same folder, never over another document; the new id. */
     String rename(String id, String name) throws IOException {
         if (fixed(id) || !validName(name)) {
-            throw new IOException(said(R.string.folder_cannot_rename, id, name));
+            throw new IOException(said("folder_cannot_rename", "Cannot rename %1$s to %2$s", id, name));
         }
         String renamed = parent(id) + "/" + name;
         // Without REPLACE_EXISTING this fails on a taken name, and moves a link rather than its target.
@@ -234,7 +241,7 @@ final class GameFolder {
     /** A file, or a folder with all it holds; a link inside goes, not what it points to. */
     void delete(String id) throws IOException {
         if (fixed(id)) {
-            throw new IOException(said(R.string.folder_cannot_delete, id));
+            throw new IOException(said("folder_cannot_delete", "Cannot delete %1$s", id));
         }
         Files.walkFileTree(file(id).toPath(), new SimpleFileVisitor<Path>() {
             @Override
