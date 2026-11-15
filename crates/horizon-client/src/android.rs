@@ -887,7 +887,8 @@ mod input {
 }
 
 pub use input::{
-    KeyPress, MouseEvent, keyboard_used, pad_state, push_mouse, take_keys, take_mouse_events,
+    KeyPress, MouseEvent, keyboard_used, pad_state, push_key, push_mouse, take_keys,
+    take_mouse_events,
 };
 
 /// Android took the captured pointer back while the game held it (StarlingActivity).
