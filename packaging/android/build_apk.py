@@ -363,6 +363,9 @@ def main():
     else:
         run(ndk_tool(ndk, "llvm-strip"), "--strip-unneeded", "-o", library, built)
     if args.library_only:
+        # The libraries a NativeActivity host needs beside it: the launcher's java/javac helpers
+        # and the C++ runtime the Rust library links against. No resources, no dex, no APK.
+        build_launchers(ndk, out, args.abi)
         return
     if not args.keep_symbols:
         # The same library with its symbols, never shipped: CI keeps it to read crash frames. Native-mod
