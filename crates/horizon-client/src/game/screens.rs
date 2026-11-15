@@ -71,8 +71,12 @@ fn pause_buttons(
     dedicated_allowed: bool,
 ) -> Vec<(f32, f32, f32, &'static str, u8, bool)> {
     let row3 = links || additions;
-    let (x0, y0) = pause_grid(w, h, u8::from(row3) + u8::from(split));
-    let down = 24.0 * f32::from(u8::from(row3) + u8::from(split));
+    let (x0, y0) = pause_grid(
+        w,
+        h,
+        u8::from(row3) + u8::from(split) + u8::from(dedicated_allowed),
+    );
+    let down = 24.0 * f32::from(u8::from(row3) + u8::from(split) + u8::from(dedicated_allowed));
     let mut v = vec![
         (x0 + 4.0, y0 + 50.0, 204.0, "menu.returnToGame", 0, true),
         (x0 + 4.0, y0 + 74.0, 98.0, "gui.advancements", 4, true),
@@ -89,12 +93,6 @@ fn pause_buttons(
     if split {
         let y = y0 + 122.0 + if row3 { 24.0 } else { 0.0 };
         v.push((x0 + 4.0, y, 204.0, SPLIT_SETTINGS, 30, true));
-    }
-    // Starling: a phone has no command line, so the world can be handed to a dedicated
-    // server from here (`horizon-args.txt`, read at the next start).
-    if dedicated_allowed {
-        let extra = u8::from(row3) + u8::from(split);
-        v.push((x0 + 4.0, y0 + 146.0 + 24.0 * extra, 204.0, DEDICATED_BUTTON, 31, true));
     }
     v.extend([
         (x0 + 4.0, y0 + 122.0 + down, 98.0, "menu.options", 1, true),
@@ -119,6 +117,18 @@ fn pause_buttons(
             true,
         ),
     ]);
+    // Starling: a phone has no command line, so the world can be handed to a dedicated server
+    // from here (`horizon-args.txt`, read at the next start). Its own row, under the rest.
+    if dedicated_allowed {
+        v.push((
+            x0 + 4.0,
+            y0 + 170.0 + down,
+            204.0,
+            DEDICATED_BUTTON,
+            31,
+            true,
+        ));
+    }
     v
 }
 
@@ -170,8 +180,13 @@ fn pause_icons(
     links: bool,
     additions: bool,
     split: bool,
+    dedicated: bool,
 ) -> [(f32, f32, &'static str); 4] {
-    let (x0, y0) = pause_grid(w, h, u8::from(links || additions) + u8::from(split));
+    let (x0, y0) = pause_grid(
+        w,
+        h,
+        u8::from(links || additions) + u8::from(split) + u8::from(dedicated),
+    );
     let (x0, y) = (x0 + 60.0, y0 + 98.0);
     [
         (x0, y, "gui/sprites/pause_menu/bug"),
@@ -457,6 +472,7 @@ impl Game<'_> {
             links,
             additions.is_some(),
             self.options.split_guest || self.split_hud.menu,
+            self.dedicated_offer(),
         );
         let friends = icons[FRIENDS_ICON];
         let hit = pause_buttons(
@@ -570,6 +586,7 @@ impl Game<'_> {
                     links,
                     self.pause_screen_additions().is_some(),
                     self.options.split_guest || self.split_hud.menu,
+                    self.dedicated_offer(),
                 )
                 .into_iter()
                 .enumerate()
@@ -962,7 +979,7 @@ mod tests {
         assert_eq!(links.3, "menu.server_links");
         assert!(links.5);
         // The icon row sits above it; Options and Disconnect move down 24.
-        let icons = pause_icons(427.0, 240.0, true, false, false);
+        let icons = pause_icons(427.0, 240.0, true, false, false, false);
         let y0_icons = ((240.0f32 - 190.0) * 0.25).floor() + 98.0;
         assert_eq!(icons[0].1, y0_icons);
         assert!(links.1 > icons[0].1);
@@ -992,8 +1009,8 @@ mod tests {
             assert_eq!(add.1, link.1);
         }
         assert_eq!(
-            pause_icons(427.0, 240.0, true, true, false)[0].1,
-            pause_icons(427.0, 240.0, true, false, false)[0].1
+            pause_icons(427.0, 240.0, true, true, false, false)[0].1,
+            pause_icons(427.0, 240.0, true, false, false, false)[0].1
         );
     }
     #[test]
