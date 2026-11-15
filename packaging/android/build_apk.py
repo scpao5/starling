@@ -281,9 +281,15 @@ def sign(build_tools, aligned, apk, out):
     kept = HERE / "starling-test.keystore"
     if not keystore and kept.is_file():
         keystore = kept
-        env.setdefault("HORIZON_ANDROID_STORE_PASSWORD", "android")
-        env.setdefault("HORIZON_ANDROID_KEY_PASSWORD", "android")
-        env.setdefault("HORIZON_ANDROID_KEY_ALIAS", "testkey")
+        # A fork has no STARLING_* secrets, so the workflow hands over empty strings: an empty
+        # password is no password, and the key is the one kept beside this file.
+        for name, value in (
+            ("HORIZON_ANDROID_STORE_PASSWORD", "android"),
+            ("HORIZON_ANDROID_KEY_PASSWORD", "android"),
+            ("HORIZON_ANDROID_KEY_ALIAS", "testkey"),
+        ):
+            if not env.get(name):
+                env[name] = value
     alias = env.get("HORIZON_ANDROID_KEY_ALIAS", "horizon-debug")
     if not keystore:
         keystore = out / "debug.keystore"

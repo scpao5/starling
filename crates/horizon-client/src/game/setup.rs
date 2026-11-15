@@ -300,57 +300,53 @@ fn texts(step: &Step) -> (&'static str, String, Option<String>) {
         ),
         #[cfg(target_os = "android")]
         Step::Horizon(true) => (
-            "Coming from Horizon Android?",
-            "Your worlds and resource packs are on their way: the note at the top says what each \
-             one added. Tap Next when they are in."
-                .into(),
+            tr("setup.horizon.title"),
+            tr("setup.horizon.body"),
             None,
         ),
         Step::Start => ("Set up Starling", tr("setup.intro"), None),
         Step::Offline => (
-            "Are you sure?",
-            "You will not be able to play on most servers! We highly recommend signing in with \
-             Microsoft."
-                .into(),
+            tr("setup.offline.title"),
+            tr("setup.offline.body"),
             None,
         ),
         Step::Talking(message) => ("Set up Starling", message.clone(), None),
         Step::AccountForm => ("Set up Starling", String::new(), None),
         Step::Code { link, .. } => (
-            "Sign in with Microsoft",
-            format!("On {link}, enter this code:"),
+            tr("setup.code.title"),
+            tr("setup.code.body").replace("{link}", link),
             Some(tr("waiting_browser")),
         ),
         Step::Download([files, files_total, bytes, bytes_total]) => (
-            "Downloading the game",
-            "From Mojang's servers, checked file by file.".into(),
+            tr("setup.download.title"),
+            tr("setup.download.body"),
             Some(if *bytes_total > 0 {
-                format!(
-                    "{files} of {files_total} files, {} of {} MB",
-                    mb(*bytes),
-                    mb(*bytes_total)
-                )
+                tr("setup.download.progress")
+                    .replace("{files}", &files.to_string())
+                    .replace("{total}", &files_total.to_string())
+                    .replace("{done}", &mb(*bytes))
+                    .replace("{size}", &mb(*bytes_total))
             } else {
-                "Checking the files".into()
+                tr("setup.download.checking")
             }),
         ),
         Step::Java(done, total) => (
-            "Preparing the game",
-            "Downloading Java, which prepares the game files.".into(),
+            tr("setup.java.title"),
+            tr("setup.java.body"),
             (*total > 0).then(|| format!("{} of {} MB", mb(*done), mb(*total))),
         ),
-        Step::Unpacking => ("Preparing the game", "Unpacking Java.".into(), None),
+        Step::Unpacking => (tr("setup.java.title"), tr("setup.unpacking.body"), None),
         Step::Preparing(line) => (
-            "Preparing the game",
-            "This takes a few minutes. Keep Starling open.".into(),
+            tr("setup.java.title"),
+            tr("setup.preparing.body"),
             Some(line.clone()),
         ),
         Step::Done => (
-            "Starting Starling",
-            "The game files are ready.".into(),
+            tr("setup.done.title"),
+            tr("setup.done.body"),
             None,
         ),
-        Step::Failed(e) | Step::SignInFailed(e) => ("Something went wrong", e.clone(), None),
+        Step::Failed(e) | Step::SignInFailed(e) => (tr("setup.failed.title"), e.clone(), None),
     }
 }
 
@@ -378,13 +374,13 @@ fn buttons(step: &Step) -> Vec<(String, Action)> {
         }
         #[cfg(target_os = "android")]
         Step::Horizon(false) => vec![
-            literal("Bring them over", Action::Horizon),
-            literal("Skip", Action::HorizonDone),
+            (tr("setup.horizon.bring"), Action::Horizon),
+            (tr("setup.skip"), Action::HorizonDone),
         ],
         #[cfg(target_os = "android")]
         Step::Horizon(true) => vec![
-            literal("Next", Action::HorizonDone),
-            literal("Pick the folder again", Action::Horizon),
+            (tr("setup.next"), Action::HorizonDone),
+            (tr("setup.horizon.pick"), Action::Horizon),
         ],
         Step::Start => vec![
             (tr("setup.microsoft"), Action::SignIn),
@@ -403,17 +399,17 @@ fn buttons(step: &Step) -> Vec<(String, Action)> {
         ],
         Step::Talking(_) => vec![(tr("cancel"), Action::CancelSignIn)],
         Step::Failed(_) => vec![
-            literal("Try again", Action::Retry),
+            (tr("setup.retry"), Action::Retry),
             (tr("setup.import"), Action::Pick),
         ],
         Step::SignInFailed(_) => vec![
-            literal("Try again", Action::Retry),
+            (tr("setup.retry"), Action::Retry),
             (tr("back"), Action::AccountBack),
             (tr("setup.offline_title"), Action::Offline),
         ],
         step if waiting(step) => vec![
-            literal("Go fishing", Action::Fish),
-            literal("Settings", Action::Settings),
+            (tr("setup.fish"), Action::Fish),
+            (tr("setup.settings"), Action::Settings),
         ],
         _ => Vec::new(),
     }
