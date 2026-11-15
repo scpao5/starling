@@ -1,0 +1,14 @@
+<resources>
+    <string name="work_title">Starling</string>
+    <string name="work_channel">Starling at work</string>
+    <string name="work_default">Starling is working</string>
+    <string name="folder_cannot_make">Cannot make %1$s in %2$s</string>
+    <string name="folder_no_free_name">No free name for %1$s in %2$s</string>
+    <string name="folder_cannot_rename">Cannot rename %1$s to %2$s</string>
+    <string name="folder_cannot_delete">Cannot delete %1$s</string>
+    <string name="open_with">Open with</string>
+    <string name="horizon_nothing">Horizon Android has no worlds or resource packs there</string>
+    <string name="list_and"> and </string>
+    <string name="mod_wants_one">%1$s wants %2$s.</string>
+    <string name="mod_wants_many">%1$s want %2$s.</string>
+</resources>

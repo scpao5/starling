@@ -559,8 +559,9 @@ public class StarlingActivity extends NativeActivity {
             if (said.length() > 0) {
                 said.append('\n');
             }
-            said.append(modNames(mods)).append(mods.size() == 1 ? " wants " : " want ")
-                    .append(known[2]).append('.');
+            said.append(getString(
+                    mods.size() == 1 ? R.string.mod_wants_one : R.string.mod_wants_many,
+                    modNames(mods), known[2]));
         }
         if (missing.isEmpty()) {
             return;
@@ -658,12 +659,12 @@ public class StarlingActivity extends NativeActivity {
     }
 
     /** Mod ids as the player reads them: "voicechat" is Voicechat, two are "A and B". */
-    private static String modNames(List<String> ids) {
+    private String modNames(List<String> ids) {
         StringBuilder names = new StringBuilder();
         for (int i = 0; i < ids.size(); i++) {
             String id = ids.get(i);
             if (i > 0) {
-                names.append(i == ids.size() - 1 ? " and " : ", ");
+                names.append(i == ids.size() - 1 ? getString(R.string.list_and) : ", ");
             }
             names.append(id.isEmpty() ? id : Character.toUpperCase(id.charAt(0)) + id.substring(1));
         }

@@ -1,0 +1,14 @@
+<resources>
+    <string name="work_title">Starling</string>
+    <string name="work_channel">Starling 正在工作</string>
+    <string name="work_default">Starling 正在工作</string>
+    <string name="folder_cannot_make">无法在 %2$s 中创建 %1$s</string>
+    <string name="folder_no_free_name">%2$s 中没有可用的名称：%1$s</string>
+    <string name="folder_cannot_rename">无法把 %1$s 重命名为 %2$s</string>
+    <string name="folder_cannot_delete">无法删除 %1$s</string>
+    <string name="open_with">打开方式</string>
+    <string name="horizon_nothing">Horizon Android 那里没有世界或资源包</string>
+    <string name="list_and"> 和 </string>
+    <string name="mod_wants_one">%1$s 需要 %2$s。</string>
+    <string name="mod_wants_many">%1$s 需要 %2$s。</string>
+</resources>

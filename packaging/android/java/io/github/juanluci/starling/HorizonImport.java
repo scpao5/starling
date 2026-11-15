@@ -130,7 +130,7 @@ final class HorizonImport {
             android.util.Log.w("starling", "could not read Horizon Android's folder", e);
             return activity.getString(R.string.horizon_cannot_read);
         }
-        return brought == 0 ? "Horizon Android has no worlds or resource packs there" : null;
+        return brought == 0 ? activity.getString(R.string.horizon_nothing) : null;
     }
 
     /** One world or pack into the inbox: 1 when it went, 0 for anything else. */

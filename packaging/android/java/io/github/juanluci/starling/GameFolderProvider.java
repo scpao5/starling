@@ -42,6 +42,8 @@ public final class GameFolderProvider extends DocumentsProvider {
     /** Looked up on each call: the player can allow shared storage while this process lives. */
     private GameFolder folder() {
         Context context = getContext();
+        // The messages it throws become the Files app's errors, and they are resources.
+        GameFolder.context = context;
         return GameFolder.choose(context.getFilesDir(), StarlingActivity.sharedFolder(context));
     }
 
