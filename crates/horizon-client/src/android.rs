@@ -33,6 +33,14 @@ pub fn set_shared_folder(folder: PathBuf) {
     let _ = SHARED_FOLDER.set(folder);
 }
 
+/// The Minecraft install a launcher already filled, when this build is hosted by one
+/// (accounts::files_root reads it): its `versions`, `assets` and `libraries` are the game's
+/// files, and the folder it names is the parent of `minecraft/` only by Starling's own layout.
+pub fn set_minecraft_root(root: PathBuf) {
+    // SAFETY: as set_shared_folder, before the game's threads start.
+    unsafe { std::env::set_var("STARLING_MINECRAFT_ROOT", &root) };
+}
+
 /// NativeActivity's entry point (the manifest's `android.app.func_name`, through the cdylib's
 /// `starling_on_create`): the game of this library, or of the build with native mods
 /// StarlingActivity loaded in its place (`STARLING_GAME_LIBRARY`, NativeMods.java). The activity

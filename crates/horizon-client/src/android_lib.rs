@@ -98,6 +98,23 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_onPointerCa
     horizon_client::android::note_pointer_capture_lost();
 }
 
+/// `StarlingActivity.onMinecraftRoot`: where the launcher's own Minecraft install is (FCL's
+/// `.minecraft`, or one of its version folders), when it has one of its own instead of the
+/// engine's `minecraft/` under the shared folder.
+#[unsafe(no_mangle)]
+extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_onMinecraftRoot(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    folder: jni::objects::JString,
+) {
+    if folder.is_null() {
+        return;
+    }
+    if let Ok(folder) = env.get_string(&folder) {
+        horizon_client::android::set_minecraft_root(String::from(folder).into());
+    }
+}
+
 /// The launcher's on-screen controls: `StarlingActivity.sendMouseMove/Button/Wheel`
 /// (packaging/android/java). They feed the same queue winit's own mouse events go to
 /// (android::input), so the game reads them as a computer's mouse.

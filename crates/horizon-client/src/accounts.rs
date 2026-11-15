@@ -44,6 +44,15 @@ pub fn files_root() -> PathBuf {
 /// path comes from the environment, so this file works in every crate that includes it (the
 /// game, the lib, the parity probes) without one of them having an `android` module.
 fn shared_files_root() -> Option<PathBuf> {
+    // A launcher that has its own install (FCL's `.minecraft`, or a version folder of one) says
+    // where it is: `versions`, `assets` and `libraries` sit right there, with no `minecraft/`
+    // under it, so it is used as it is.
+    if let Some(root) = std::env::var_os("STARLING_MINECRAFT_ROOT") {
+        let dir = PathBuf::from(root);
+        if !dir.as_os_str().is_empty() && dir.is_dir() {
+            return Some(dir);
+        }
+    }
     let shared = std::env::var_os("STARLING_SHARED_FOLDER")?;
     if shared.is_empty() {
         return None;
