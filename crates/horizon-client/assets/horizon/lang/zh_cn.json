@@ -686,5 +686,20 @@
   "starling.ui.may_show_hud_panels": "可能显示 HUD 面板。",
   "starling.ui.invalid_package": "包无效",
   "starling.ui.mojang_said_no": "Mojang 拒绝了",
-  "starling.ui.waiting_for_an_agent": "正在等待代理。"
+  "starling.ui.waiting_for_an_agent": "正在等待代理。",
+  "starling.ui.select_mods_and_data_packs": "选择模组与数据包",
+  "starling.ui.confirm": "确认",
+  "starling.ui.use_this_pack": "使用此资源包？",
+  "starling.ui.packs": "资源包",
+  "starling.ui.done": "完成",
+  "starling.ui.graphics_api_prefer_vulkan_experimental": "图形 API：优先 Vulkan（实验性）",
+  "starling.ui.items": "物品",
+  "starling.ui.open": "打开？",
+  "starling.ui.customize": "自定义…",
+  "starling.ui.lobby": "大厅",
+  "starling.ui.created_a_raid_in_your_local_village": "在你的村庄中发动了一次袭击",
+  "starling.ui.stopped_raid": "已停止袭击",
+  "starling.ui.found_a_started_raid": "找到了一场已开始的袭击！",
+  "starling.ui.spawned_a_raid_captain": "已生成袭击队长",
+  "starling.ui.not_currently_profiling": "当前没有进行性能分析"
 }

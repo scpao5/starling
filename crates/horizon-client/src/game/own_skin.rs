@@ -577,7 +577,7 @@ impl Game<'_> {
         batch.text(atlas, &player.name, name_x, y0 - 8.0, u32::MAX, true);
         let [bx, by, bw] = layout.button;
         let hover = ui::hovered(self.cursor, bx, by, bw, 20.0);
-        let label = Text::literal("Customize...");
+        let label = Text::literal(&crate::lang::get_or("starling.ui.customize", "Customize..."));
         ui::button(batch, atlas, bx, by, bw, 20.0, &label, true, hover);
     }
 

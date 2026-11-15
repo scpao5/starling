@@ -440,7 +440,7 @@ impl PackScreen {
     fn title(&self) -> Text {
         if self.data {
             // Starling: the world's content mods are chosen here too.
-            Text::literal("Select Mods and Data Packs")
+            Text::literal(&crate::lang::get_or("starling.ui.select_mods_and_data_packs", "Select Mods and Data Packs"))
         } else {
             self.title.clone()
         }
@@ -1367,8 +1367,8 @@ mod click_sound_tests {
         }
         screen.confirm = Some(Confirm {
             id: "incompatible".into(),
-            title: Text::literal("Confirm"),
-            message: Text::literal("Use this pack?"),
+            title: Text::literal(&crate::lang::get_or("starling.ui.confirm", "Confirm")),
+            message: Text::literal(&crate::lang::get_or("starling.ui.use_this_pack", "Use this pack?")),
         });
         let buttons = screen
             .confirm_layout(&m, screen.confirm.as_ref().unwrap())
@@ -1488,8 +1488,8 @@ mod catalog_button_tests {
         screen.catalog = true;
         screen.confirm = Some(Confirm {
             id: "incompatible".into(),
-            title: Text::literal("Confirm"),
-            message: Text::literal("Use this pack?"),
+            title: Text::literal(&crate::lang::get_or("starling.ui.confirm", "Confirm")),
+            message: Text::literal(&crate::lang::get_or("starling.ui.use_this_pack", "Use this pack?")),
         });
         let (x, y, _) = screen.catalog_button().unwrap();
         assert!(!screen.button_at(&m, x as f64 + 1.0, y as f64 + 1.0));
@@ -1544,7 +1544,7 @@ mod footer_label_tests {
         now_ms: i64,
     ) -> (Vec<Draw>, [(i32, i32); 2]) {
         let m = Measure(&atlas.font);
-        let screen = PackScreen::new(&m, Text::literal("Packs"), 480, 320, false, Vec::new(), &[]);
+        let screen = PackScreen::new(&m, Text::literal(&crate::lang::get_or("starling.ui.packs", "Packs")), 480, 320, false, Vec::new(), &[]);
         let mut out = Vec::new();
         screen.draw_footer(&mut out, &m, (0, 0), now_ms, [open_folder, done]);
         (out, screen.footer())
@@ -1585,7 +1585,7 @@ mod footer_label_tests {
         let m = Measure(&atlas.font);
         let wide = Text::literal("Otvori papku s paketami resursov, i jos nesto");
         assert!(m.width(&wide) > 146);
-        let (draws, buttons) = footer(&atlas, &wide, &Text::literal("Done"), 0);
+        let (draws, buttons) = footer(&atlas, &wide, &Text::literal(&crate::lang::get_or("starling.ui.done", "Done")), 0);
         assert_eq!(assert_labels_stay_in_their_buttons(&draws, &buttons), 1);
         // The clock moves it.
         let x = |draws: &[Draw]| {
@@ -1597,7 +1597,7 @@ mod footer_label_tests {
                 })
                 .unwrap()
         };
-        let (later, _) = footer(&atlas, &wide, &Text::literal("Done"), 2000);
+        let (later, _) = footer(&atlas, &wide, &Text::literal(&crate::lang::get_or("starling.ui.done", "Done")), 2000);
         assert_ne!(x(&draws), x(&later));
         // Both too wide: both scroll.
         let (draws, buttons) = footer(&atlas, &wide, &wide, 0);

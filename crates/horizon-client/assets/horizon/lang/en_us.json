@@ -686,5 +686,20 @@
   "starling.ui.may_show_hud_panels": "May show HUD panels.",
   "starling.ui.invalid_package": "Invalid package",
   "starling.ui.mojang_said_no": "Mojang said no",
-  "starling.ui.waiting_for_an_agent": "Waiting for an agent."
+  "starling.ui.waiting_for_an_agent": "Waiting for an agent.",
+  "starling.ui.select_mods_and_data_packs": "Select Mods and Data Packs",
+  "starling.ui.confirm": "Confirm",
+  "starling.ui.use_this_pack": "Use this pack?",
+  "starling.ui.packs": "Packs",
+  "starling.ui.done": "Done",
+  "starling.ui.graphics_api_prefer_vulkan_experimental": "Graphics API: Prefer Vulkan (Experimental)",
+  "starling.ui.items": "Items",
+  "starling.ui.open": "Open?",
+  "starling.ui.customize": "Customize...",
+  "starling.ui.lobby": "Lobby",
+  "starling.ui.created_a_raid_in_your_local_village": "Created a raid in your local village",
+  "starling.ui.stopped_raid": "Stopped raid",
+  "starling.ui.found_a_started_raid": "Found a started raid!",
+  "starling.ui.spawned_a_raid_captain": "Spawned a raid captain",
+  "starling.ui.not_currently_profiling": "Not currently profiling"
 }

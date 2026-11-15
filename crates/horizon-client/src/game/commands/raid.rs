@@ -23,7 +23,7 @@ impl Game<'_> {
                 }
                 let level = Self::int(ctx, "omenlvl").unwrap_or(0);
                 match self.raid_command_create(at, level) {
-                    true => self.feedback(Text::literal("Created a raid in your local village")),
+                    true => self.feedback(Text::literal(&crate::lang::get_or("starling.ui.created_a_raid_in_your_local_village", "Created a raid in your local village"))),
                     false => fail(self, "Failed to create a raid in your local village"),
                 }
                 Ok(1)
@@ -31,7 +31,7 @@ impl Game<'_> {
             "raid.stop" => match self.raiding_nearby(at) {
                 Some(raid) => {
                     self.raid_command_stop(raid);
-                    self.feedback(Text::literal("Stopped raid"));
+                    self.feedback(Text::literal(&crate::lang::get_or("starling.ui.stopped_raid", "Stopped raid")));
                     Ok(1)
                 }
                 None => {
@@ -41,7 +41,7 @@ impl Game<'_> {
             },
             "raid.check" => match self.raiding_nearby(at).filter(|id| self.raid_started(*id)) {
                 Some(raid) => {
-                    self.feedback(Text::literal("Found a started raid!"));
+                    self.feedback(Text::literal(&crate::lang::get_or("starling.ui.found_a_started_raid", "Found a started raid!")));
                     let status = self.raid_status_text(raid);
                     self.feedback(Text::literal(&status));
                     Ok(1)
@@ -59,7 +59,7 @@ impl Game<'_> {
                             raider::set_patrol_leader(m, true);
                             raider::finalize(m, raider::Reason::Other);
                         }
-                        self.feedback(Text::literal("Spawned a raid captain"));
+                        self.feedback(Text::literal(&crate::lang::get_or("starling.ui.spawned_a_raid_captain", "Spawned a raid captain")));
                         Ok(1)
                     }
                     None => {
