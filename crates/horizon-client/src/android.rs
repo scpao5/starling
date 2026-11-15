@@ -26,6 +26,12 @@ pub fn set_shared_folder(folder: PathBuf) {
     let _ = SHARED_FOLDER.set(folder);
 }
 
+/// The shared folder the player allowed (`Starling`, `StarlingDev`, `StarlingPreview`), or None
+/// when they have not: the game files live under it, so a reinstall finds them.
+pub fn shared_folder() -> Option<&'static Path> {
+    SHARED_FOLDER.get().map(PathBuf::as_path)
+}
+
 /// NativeActivity's entry point (the manifest's `android.app.func_name`, through the cdylib's
 /// `starling_on_create`): the game of this library, or of the build with native mods
 /// StarlingActivity loaded in its place (`STARLING_GAME_LIBRARY`, NativeMods.java). The activity

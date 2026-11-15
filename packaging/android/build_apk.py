@@ -274,8 +274,17 @@ def add_code(base, libraries, dex, unsigned, abi=ABI):
 
 def sign(build_tools, aligned, apk, out):
     keystore = os.environ.get("HORIZON_ANDROID_KEYSTORE")
-    alias = os.environ.get("HORIZON_ANDROID_KEY_ALIAS", "horizon-debug")
     env = dict(os.environ)
+    # The key the Android tree itself uses for debug builds, kept here so every build signs with
+    # the same one: an APK then installs over the last, keeping the app's data (its downloaded
+    # game files and settings) instead of the system refusing it for a different signer.
+    kept = HERE / "starling-test.keystore"
+    if not keystore and kept.is_file():
+        keystore = kept
+        env.setdefault("HORIZON_ANDROID_STORE_PASSWORD", "android")
+        env.setdefault("HORIZON_ANDROID_KEY_PASSWORD", "android")
+        env.setdefault("HORIZON_ANDROID_KEY_ALIAS", "testkey")
+    alias = env.get("HORIZON_ANDROID_KEY_ALIAS", "horizon-debug")
     if not keystore:
         keystore = out / "debug.keystore"
         env["HORIZON_ANDROID_STORE_PASSWORD"] = env["HORIZON_ANDROID_KEY_PASSWORD"] = "android"

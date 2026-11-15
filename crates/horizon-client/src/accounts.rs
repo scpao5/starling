@@ -30,8 +30,17 @@ pub fn dir() -> PathBuf {
 }
 
 /// Where the official files go, in the official launcher's layout (`versions/`, `libraries/`,
-/// `assets/`): the private folder, never shared storage.
+/// `assets/`). Shared storage's `Starling/minecraft` once the player allowed it, so the ~700 MB
+/// a reinstall would otherwise fetch again stay put; the app's own files when they did not, or
+/// on a system without shared storage.
 pub fn files_root() -> PathBuf {
+    #[cfg(target_os = "android")]
+    if let Some(shared) = crate::android::shared_folder() {
+        let dir = shared.join("minecraft");
+        if std::fs::create_dir_all(&dir).is_ok() {
+            return dir;
+        }
+    }
     crate::logging::private_home().join("minecraft")
 }
 

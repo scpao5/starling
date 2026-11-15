@@ -92,8 +92,34 @@ pub enum Face {
     /// Counts, timestamps and the boot screen's console lines.
     Mono,
 }
+/// The device's own CJK face, read at start: Geist carries no Chinese, Japanese or Korean
+/// glyphs, so without it those characters draw as boxes. Android keeps Noto Sans CJK under
+/// `/system/fonts`; a system that has none gets the bundled face only. Leaked on purpose: the
+/// faces borrow it for as long as the process runs, as they borrow the bundled fonts.
+fn cjk_face() -> Option<&'static FontRef<'static>> {
+    const PATHS: &[&str] = &[
+        "/system/fonts/NotoSansCJK-Regular.ttc",
+        "/system/fonts/NotoSansSC-Regular.otf",
+        "/system/fonts/NotoSansCJKsc-Regular.otf",
+        "/system/fonts/DroidSansFallback.ttf",
+    ];
+    for path in PATHS {
+        let Ok(data) = std::fs::read(path) else {
+            continue;
+        };
+        let leaked: &'static [u8] = Box::leak(data.into_boxed_slice());
+        // A `.ttc` is a collection; ab_glyph reads the first face of one.
+        if let Ok(face) = FontRef::try_from_slice(leaked) {
+            log::info!("Horizon: {path} draws the CJK glyphs the bundled fonts lack");
+            return Some(Box::leak(Box::new(face)));
+        }
+    }
+    None
+}
+
 struct Fonts {
     faces: [FontRef<'static>; 4],
+    cjk: Option<&'static FontRef<'static>>,
 }
 impl Fonts {
     fn load() -> Self {
@@ -105,10 +131,23 @@ impl Fonts {
                 f(horizon_theme::fonts::GEIST_SEMIBOLD),
                 f(horizon_theme::fonts::GEIST_MONO),
             ],
+            cjk: cjk_face(),
         }
     }
     fn face(&self, f: Face) -> &FontRef<'static> {
         &self.faces[f as usize]
+    }
+    /// The face that has a glyph for `ch`: the bundled one, else the device's CJK face. `None`
+    /// when neither does (the bundled face then draws its own fallback box, as before).
+    fn face_for(&self, f: Face, ch: char) -> &FontRef<'static> {
+        let face = self.face(f);
+        if face.glyph_id(ch).0 != 0 {
+            return face;
+        }
+        match self.cjk {
+            Some(cjk) if cjk.glyph_id(ch).0 != 0 => cjk,
+            _ => face,
+        }
     }
     /// The ab_glyph scale for an em size in pixels.
     fn scale(&self, f: Face, px: f32) -> PxScale {
@@ -119,7 +158,9 @@ impl Fonts {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Key {
-    Glyph(Face, u16, u16),
+    /// `0` for the bundled face, `1` for the device's CJK one: the same glyph id means
+    /// different shapes in the two.
+    Glyph(Face, u8, u16, u16),
     /// A quarter disc (`false`) or a 1px quarter ring of this radius in pixels.
     Corner(u16, bool),
 }
@@ -232,15 +273,27 @@ impl Cache {
             h,
         })
     }
-    fn glyph(&mut self, atlas: &HudAtlas, face: Face, id: ab_glyph::GlyphId, px: f32) -> Cached {
+    fn glyph(
+        &mut self,
+        atlas: &HudAtlas,
+        face: Face,
+        fallback: u8,
+        id: ab_glyph::GlyphId,
+        px: f32,
+    ) -> Cached {
         let size = (px * 4.0).round() as u16;
-        let key = Key::Glyph(face, id.0, size);
+        let key = Key::Glyph(face, fallback, id.0, size);
         if let Some(c) = self.entries.get(&key) {
             return *c;
         }
-        let scale = self.fonts.scale(face, f32::from(size) / 4.0);
+        let source = match fallback {
+            1 => self.fonts.cjk.unwrap_or_else(|| self.fonts.face(face)),
+            _ => self.fonts.face(face),
+        };
+        let upem = source.units_per_em().unwrap_or(1000.0);
+        let scale = PxScale::from(f32::from(size) / 4.0 * source.height_unscaled() / upem);
         let glyph = id.with_scale_and_position(scale, ab_glyph::point(0.0, 0.0));
-        let made = match self.fonts.face(face).outline_glyph(glyph) {
+        let made = match source.outline_glyph(glyph) {
             Some(outline) => {
                 let b = outline.px_bounds();
                 let (w, h) = (b.width() as u32, b.height() as u32);
@@ -469,11 +522,13 @@ impl<'a> Ui<'a> {
     pub fn measure(&self, face: Face, size: f32, text: &str) -> f32 {
         let px = (size * self.density * 4.0).round() / 4.0;
         with_cache(self.atlas, |c| {
-            let font = c.fonts.face(face);
-            let scaled = font.as_scaled(c.fonts.scale(face, px));
             let mut w = 0.0;
             let mut prev = None;
             for ch in text.chars() {
+                // Each character in the face that has it, at that face's own scale.
+                let font = c.fonts.face_for(face, ch);
+                let upem = font.units_per_em().unwrap_or(1000.0);
+                let scaled = font.as_scaled(PxScale::from(px * font.height_unscaled() / upem));
                 let id = font.glyph_id(ch);
                 if let Some(p) = prev {
                     w += scaled.kern(p, id);
@@ -514,15 +569,18 @@ impl<'a> Ui<'a> {
             let mut pen = x0;
             let mut prev = None;
             for ch in text.chars() {
-                let (id, advance, kern) = {
-                    let font = c.fonts.face(face);
-                    let id = font.glyph_id(ch);
-                    let f = font.as_scaled(scale);
-                    (id, f.h_advance(id), prev.map_or(0.0, |p| f.kern(p, id)))
-                };
+                // The CJK face for a character the bundled one lacks, each at its own scale
+                // (the two fonts' em boxes differ).
+                let font = c.fonts.face_for(face, ch);
+                let fallback = u8::from(!std::ptr::eq(font, c.fonts.face(face)));
+                let upem = font.units_per_em().unwrap_or(1000.0);
+                let f = font.as_scaled(PxScale::from(px * font.height_unscaled() / upem));
+                let id = font.glyph_id(ch);
+                let kern = prev.map_or(0.0, |p| f.kern(p, id));
+                let advance = f.h_advance(id);
                 pen += kern;
                 if real && !ch.is_whitespace() {
-                    let g = c.glyph(atlas, face, id, px);
+                    let g = c.glyph(atlas, face, fallback, id, px);
                     if let Some(rect) = g.rect {
                         quads.push(((pen + g.left).round(), baseline + g.top, rect));
                     }
@@ -731,7 +789,7 @@ mod tests {
             let glyph = cache.fonts.face(Face::Regular).glyph_id('A');
             assert!(
                 cache
-                    .glyph(&atlas, Face::Regular, glyph, 16.0)
+                    .glyph(&atlas, Face::Regular, 0, glyph, 16.0)
                     .rect
                     .is_some()
             );

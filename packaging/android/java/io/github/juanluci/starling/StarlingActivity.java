@@ -154,6 +154,16 @@ public class StarlingActivity extends NativeActivity {
                 : null;
     }
 
+    /** Whether this install already sent the player to the storage setting once. */
+    private static boolean storageAsked(Context context) {
+        return context.getSharedPreferences("starling", Context.MODE_PRIVATE)
+                .getBoolean("storage_asked", false);
+    }
+    private static void markStorageAsked(Context context) {
+        context.getSharedPreferences("starling", Context.MODE_PRIVATE)
+                .edit().putBoolean("storage_asked", true).apply();
+    }
+
     public void openDiagnostics() {
         runOnUiThread(new Runnable() {
             @Override public void run() { startActivity(new Intent(StarlingActivity.this, DiagnosticsActivity.class)); }
@@ -180,6 +190,12 @@ public class StarlingActivity extends NativeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         StartupRecovery.begin(this);
         loadGame();
+        // A phone grants no access to shared storage on its own: ask once, before the game
+        // looks for the files it already fetched there, so a reinstall finds them again.
+        if (!fileAccessAllowed() && !storageAsked(this)) {
+            markStorageAsked(this);
+            openFileAccessSettings();
+        }
         // Before super.onCreate starts the game's thread, which reads it first thing.
         onStorage(sharedFolder(this));
         super.onCreate(savedInstanceState);

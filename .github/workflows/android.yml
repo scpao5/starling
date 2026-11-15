@@ -44,11 +44,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Only arm64-v8a: every phone this build is for is arm64, and the other three APKs
+        # were built for nobody.
         include:
           - { abi: arm64-v8a, target: aarch64-linux-android }
-          - { abi: armeabi-v7a, target: armv7-linux-androideabi }
-          - { abi: x86, target: i686-linux-android }
-          - { abi: x86_64, target: x86_64-linux-android }
     # The release key's environment, for a release build only (none otherwise).
     environment: ${{ (github.repository == 'starling-client/starling' && (startsWith(github.ref, 'refs/tags/v') || inputs.release_key)) && 'release' || '' }}
     runs-on: ubuntu-latest
@@ -112,7 +111,7 @@ jobs:
       - name: Build the APK
         env:
           ABI: ${{ matrix.abi }}
-          HORIZON_ANDROID_KEY_ALIAS: ${{ env.RELEASE_BUILD == 'true' && secrets.STARLING_KEY_ALIAS || 'horizon-debug' }}
+          HORIZON_ANDROID_KEY_ALIAS: ${{ env.RELEASE_BUILD == 'true' && secrets.STARLING_KEY_ALIAS || 'testkey' }}
           HORIZON_ANDROID_STORE_PASSWORD: ${{ secrets.STARLING_STORE_PASSWORD }}
           HORIZON_ANDROID_KEY_PASSWORD: ${{ secrets.STARLING_KEY_PASSWORD }}
           MODS: ${{ inputs.native_mods }}
