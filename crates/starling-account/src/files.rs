@@ -182,12 +182,30 @@ pub(crate) fn retrying<T>(mut attempt: impl FnMut() -> Result<T, Failure>) -> Re
 /// passes here before it is fetched. Paths are kept as they are; only the host changes.
 fn mirrored(url: &str) -> String {
     const PAIRS: &[(&str, &str)] = &[
-        ("https://piston-data.mojang.com", "https://bmclapi2.bangbang93.com"),
-        ("https://piston-meta.mojang.com", "https://bmclapi2.bangbang93.com"),
-        ("https://launchermeta.mojang.com", "https://bmclapi2.bangbang93.com"),
-        ("https://launcher.mojang.com", "https://bmclapi2.bangbang93.com"),
-        ("https://libraries.minecraft.net", "https://bmclapi2.bangbang93.com/maven"),
-        ("https://resources.download.minecraft.net", "https://bmclapi2.bangbang93.com/assets"),
+        (
+            "https://piston-data.mojang.com",
+            "https://bmclapi2.bangbang93.com",
+        ),
+        (
+            "https://piston-meta.mojang.com",
+            "https://bmclapi2.bangbang93.com",
+        ),
+        (
+            "https://launchermeta.mojang.com",
+            "https://bmclapi2.bangbang93.com",
+        ),
+        (
+            "https://launcher.mojang.com",
+            "https://bmclapi2.bangbang93.com",
+        ),
+        (
+            "https://libraries.minecraft.net",
+            "https://bmclapi2.bangbang93.com/maven",
+        ),
+        (
+            "https://resources.download.minecraft.net",
+            "https://bmclapi2.bangbang93.com/assets",
+        ),
     ];
     for (from, to) in PAIRS {
         if let Some(rest) = url.strip_prefix(from) {
