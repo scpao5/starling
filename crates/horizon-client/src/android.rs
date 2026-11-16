@@ -998,6 +998,56 @@ pub fn set_external_window(address: usize) {
         if address == 0 { None } else { Some(address) };
 }
 
+/// Teaches the renderer to build its surface on the launcher's window. It lives here rather than
+/// in horizon-client-render because that crate forbids unsafe code, and turning a raw
+/// ANativeWindow into a wgpu surface needs some.
+pub fn install_external_surface() {
+    use wgpu::rwh::{
+        AndroidDisplayHandle, AndroidNdkWindowHandle, DisplayHandle, HasDisplayHandle,
+        HasWindowHandle, RawDisplayHandle, RawWindowHandle, WindowHandle,
+    };
+    use std::num::NonZeroIsize;
+    use std::ptr::NonNull;
+
+    struct NdkWindow(NonNull<std::ffi::c_void>);
+    // SAFETY: the address is an ANativeWindow the launcher keeps alive for as long as its surface
+    // exists (setSurface / surfaceDestroyed bound its life); the handles only carry it outward.
+    unsafe impl Send for NdkWindow {}
+    unsafe impl Sync for NdkWindow {}
+    impl HasWindowHandle for NdkWindow {
+        fn window_handle(
+            &self,
+        ) -> std::result::Result<WindowHandle<'_>, wgpu::rwh::HandleError> {
+            // SAFETY: a live ANativeWindow, as above.
+            let handle = unsafe {
+                AndroidNdkWindowHandle::new(NonZeroIsize::new(self.0.as_ptr() as isize).unwrap())
+            };
+            Ok(unsafe { WindowHandle::borrow_raw(RawWindowHandle::AndroidNdk(handle)) })
+        }
+    }
+    impl HasDisplayHandle for NdkWindow {
+        fn display_handle(
+            &self,
+        ) -> std::result::Result<DisplayHandle<'_>, wgpu::rwh::HandleError> {
+            Ok(unsafe {
+                DisplayHandle::borrow_raw(RawDisplayHandle::Android(AndroidDisplayHandle::new()))
+            })
+        }
+    }
+
+    horizon_client_render::set_external_surface_provider(Some(Box::new(|instance| {
+        let address = external_window()?;
+        let ptr = NonNull::new(address as *mut std::ffi::c_void)?;
+        let window = NdkWindow(ptr);
+        let target = wgpu::SurfaceTargetUnsafe::RawHandle {
+            raw_display_handle: window.display_handle().ok()?.as_raw(),
+            raw_window_handle: window.window_handle().ok()?.as_raw(),
+        };
+        // SAFETY: the launcher guarantees the ANativeWindow outlives the surface it is used for.
+        unsafe { instance.create_surface_unsafe(target) }.ok()
+    })));
+}
+
 /// The activity, for the event loop (`EventLoopBuilderExtAndroid::with_android_app`).
 pub fn android_app() -> AndroidApp {
     APP.get().expect("android_main sets the app first").clone()
@@ -1307,6 +1357,8 @@ pub fn main(app: AndroidApp) {
         unsafe { _exit(0) }
     }
     crate::telemetry::mark_start();
+    // A launcher's own window, when one was handed over before the loop starts.
+    install_external_surface();
     // The app's own files: resources, caches, the import inbox, test arguments.
     let private: PathBuf = app
         .internal_data_path()

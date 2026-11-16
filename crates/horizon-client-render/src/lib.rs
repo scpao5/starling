@@ -1,21 +1,27 @@
 //! The client's world data, rendering and screens: chunks, meshing, light, streaming, the renderer,
 //! the HUD, menus and settings. Gameplay (horizon-client) builds on it; nothing here reaches gameplay.
 #![forbid(unsafe_code)]
-/// A window a launcher outside this process handed the engine (an address, or 0 for none), for
-/// `gfx` to build its surface on instead of the activity's own window. The game crate sets it
-/// from the JNI call the launcher makes; nothing here knows about Android.
-static EXTERNAL_WINDOW: std::sync::Mutex<Option<usize>> = std::sync::Mutex::new(None);
+/// A window a launcher outside this process handed the engine, as a wgpu surface for `gfx` to
+/// draw into instead of the activity's own window. The game crate installs it, because making a
+/// surface from a raw ANativeWindow needs unsafe code and this crate forbids it.
+pub type ExternalSurfaceProvider =
+    dyn Fn(&wgpu::Instance) -> Option<wgpu::Surface<'static>> + Send + Sync;
 
-pub fn set_external_window(address: usize) {
-    *EXTERNAL_WINDOW.lock().unwrap_or_else(|e| e.into_inner()) =
-        if address == 0 { None } else { Some(address) };
+static EXTERNAL_SURFACE: std::sync::Mutex<Option<Box<ExternalSurfaceProvider>>> =
+    std::sync::Mutex::new(None);
+
+/// Installs the provider, or clears it with None.
+pub fn set_external_surface_provider(provider: Option<Box<ExternalSurfaceProvider>>) {
+    *EXTERNAL_SURFACE.lock().unwrap_or_else(|e| e.into_inner()) = provider;
 }
 
-pub fn android_external_window() -> Option<usize> {
-    *EXTERNAL_WINDOW.lock().unwrap_or_else(|e| e.into_inner())
+/// A surface for the launcher's window, when one is installed and it can make one.
+pub fn external_surface(instance: &wgpu::Instance) -> Option<wgpu::Surface<'static>> {
+    let guard = EXTERNAL_SURFACE.lock().unwrap_or_else(|e| e.into_inner());
+    guard.as_ref().and_then(|provider| provider(instance))
 }
 
-pub mod assets;
+pub mod assets;pub mod assets;
 pub mod atlas_sources;
 pub mod audio;
 pub mod auth;
