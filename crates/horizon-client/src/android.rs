@@ -993,9 +993,13 @@ pub fn external_window() -> Option<usize> {
 }
 
 /// `StarlingActivity.setSurface`: the address of an ANativeWindow to draw into, or 0 for none.
+/// Kept here, and handed to the renderer through the provider installed below; android_lib.rs
+/// calls this because it is shared with horizon-android, which has no renderer to call.
 pub fn set_external_window(address: usize) {
     *EXTERNAL_WINDOW.lock().unwrap_or_else(|e| e.into_inner()) =
         if address == 0 { None } else { Some(address) };
+    // gfx keeps its own, so a surface rebuilt after the activity comes back uses the new window.
+    horizon_client_render::set_external_window(address);
 }
 
 /// Teaches the renderer to build its surface on the launcher's window. It lives here rather than

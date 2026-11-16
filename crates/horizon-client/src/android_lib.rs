@@ -108,7 +108,7 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_setSurface(
     surface: jni::objects::JObject,
 ) {
     if surface.is_null() {
-        horizon_client_render::set_external_window(0);
+        horizon_client::android::set_external_window(0);
         return;
     }
     // NDK's own: libandroid.so is already loaded by the activity, and its prototype is stable.
@@ -125,7 +125,7 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_setSurface(
     if window.is_null() {
         return;
     }
-    horizon_client_render::set_external_window(window as usize);
+    horizon_client::android::set_external_window(window as usize);
 }
 
 /// `StarlingActivity.onMinecraftRoot`: where the launcher's own Minecraft install is (FCL's

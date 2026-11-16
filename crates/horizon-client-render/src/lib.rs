@@ -21,6 +21,18 @@ pub fn external_surface(instance: &wgpu::Instance) -> Option<wgpu::Surface<'stat
     guard.as_ref().and_then(|provider| provider(instance))
 }
 
+/// The address of the window the launcher handed over (0 for none), kept for the provider below
+/// to read while it makes a surface.
+static EXTERNAL_ADDRESS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+pub fn set_external_window(address: usize) {
+    EXTERNAL_ADDRESS.store(address, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn external_window() -> usize {
+    EXTERNAL_ADDRESS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 pub mod assets;
 pub mod atlas_sources;
 pub mod audio;
