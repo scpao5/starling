@@ -107,25 +107,36 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_setSurface(
     _class: jni::objects::JClass,
     surface: jni::objects::JObject,
 ) {
-    if surface.is_null() {
-        horizon_client::android::set_external_window(0);
-        return;
-    }
-    // NDK's own: libandroid.so is already loaded by the activity, and its prototype is stable.
+    // NDK's own: libandroid.so is already loaded by the activity, and its prototypes are stable.
     unsafe extern "C" {
         fn ANativeWindow_fromSurface(
             env: *mut jni::sys::JNIEnv,
             surface: jni::sys::jobject,
         ) -> *mut std::ffi::c_void;
+        fn ANativeWindow_release(window: *mut std::ffi::c_void);
     }
-    let raw = env.get_raw();
-    // SAFETY: a live Surface and the process's JNIEnv, both owned by the caller's thread; the
-    // returned window outlives this call until the launcher replaces or releases it.
-    let window = unsafe { ANativeWindow_fromSurface(raw, surface.as_raw()) };
-    if window.is_null() {
-        return;
+
+    // Each call takes a reference, so the previous one goes: a SurfaceView that recreates its
+    // surface (a resize, the activity coming back) would otherwise leak one window per call.
+    let previous = horizon_client::android::external_window();
+    if !surface.is_null() {
+        let raw = env.get_raw();
+        // SAFETY: a live Surface and the process's JNIEnv, both owned by the caller's thread.
+        let window = unsafe { ANativeWindow_fromSurface(raw, surface.as_raw()) };
+        if !window.is_null() {
+            horizon_client::android::set_external_window(window as usize);
+            // SAFETY: a reference this file took and no longer keeps.
+            if let Some(old) = previous {
+                unsafe { ANativeWindow_release(old as *mut std::ffi::c_void) };
+            }
+            return;
+        }
     }
-    horizon_client::android::set_external_window(window as usize);
+    horizon_client::android::set_external_window(0);
+    if let Some(old) = previous {
+        // SAFETY: as above.
+        unsafe { ANativeWindow_release(old as *mut std::ffi::c_void) };
+    }
 }
 
 /// `StarlingActivity.onMinecraftRoot`: where the launcher's own Minecraft install is (FCL's
