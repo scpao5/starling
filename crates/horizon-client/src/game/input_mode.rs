@@ -177,5 +177,3 @@ fn key_code(name: &str) -> KeyCode {
         _ => KeyCode::Space,
     }
 }
-
-

@@ -2155,7 +2155,13 @@ mod tests {
             ms: 1,
             version: String::new(),
         };
-        pings.insert("server0".into(), ok(vec![Text::literal(crate::lang::get_or("starling.ui.lobby", "Lobby"))]));
+        pings.insert(
+            "server0".into(),
+            ok(vec![Text::literal(crate::lang::get_or(
+                "starling.ui.lobby",
+                "Lobby",
+            ))]),
+        );
         // The 20-wide count ends 5 pixels left of the bars at (349, 37).
         for cursor in [(324.0, 37.0), (343.9, 44.9)] {
             assert_eq!(hover(&pings, cursor), Some(vec!["Lobby".to_owned()]));

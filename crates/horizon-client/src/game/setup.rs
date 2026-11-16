@@ -299,17 +299,9 @@ fn texts(step: &Step) -> (String, String, Option<String>) {
             Some("They are copied: Horizon Android keeps its own.".into()),
         ),
         #[cfg(target_os = "android")]
-        Step::Horizon(true) => (
-            tr("setup.horizon.title"),
-            tr("setup.horizon.body"),
-            None,
-        ),
+        Step::Horizon(true) => (tr("setup.horizon.title"), tr("setup.horizon.body"), None),
         Step::Start => ("Set up Starling".to_owned(), tr("setup.intro"), None),
-        Step::Offline => (
-            tr("setup.offline.title"),
-            tr("setup.offline.body"),
-            None,
-        ),
+        Step::Offline => (tr("setup.offline.title"), tr("setup.offline.body"), None),
         Step::Talking(message) => ("Set up Starling".to_owned(), message.clone(), None),
         Step::AccountForm => ("Set up Starling".to_owned(), String::new(), None),
         Step::Code { link, .. } => (
@@ -341,11 +333,7 @@ fn texts(step: &Step) -> (String, String, Option<String>) {
             tr("setup.preparing.body"),
             Some(line.clone()),
         ),
-        Step::Done => (
-            tr("setup.done.title"),
-            tr("setup.done.body"),
-            None,
-        ),
+        Step::Done => (tr("setup.done.title"), tr("setup.done.body"), None),
         Step::Failed(e) | Step::SignInFailed(e) => (tr("setup.failed.title"), e.clone(), None),
     }
 }

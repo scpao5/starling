@@ -1130,7 +1130,10 @@ impl Game<'_> {
         let Some((started, ticks, stamp)) = self.cmds.jfr.take() else {
             return Err(tr_error(
                 "commands.jfr.dump.failed",
-                &[Text::literal(crate::lang::get_or("starling.ui.not_currently_profiling", "Not currently profiling"))],
+                &[Text::literal(crate::lang::get_or(
+                    "starling.ui.not_currently_profiling",
+                    "Not currently profiling",
+                ))],
             ));
         };
         let relative = format!("debug/client-{stamp}.json");
