@@ -1879,7 +1879,10 @@ mod tests {
     #[test]
     fn a_label_wider_than_its_widget_stays_inside_it() {
         let atlas = atlas();
-        let label = Text::literal(crate::lang::get_or("starling.ui.graphics_api_prefer_vulkan_experimental", "Graphics API: Prefer Vulkan (Experimental)"));
+        let label = Text::literal(crate::lang::get_or(
+            "starling.ui.graphics_api_prefer_vulkan_experimental",
+            "Graphics API: Prefer Vulkan (Experimental)",
+        ));
         assert!(atlas.font.width_text(&label.resolved()) > 96.0);
         let mut batch = HudBatch::new([640, 480]);
         scrolling_text_at(

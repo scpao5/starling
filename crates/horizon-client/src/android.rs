@@ -1002,12 +1002,12 @@ pub fn set_external_window(address: usize) {
 /// in horizon-client-render because that crate forbids unsafe code, and turning a raw
 /// ANativeWindow into a wgpu surface needs some.
 pub fn install_external_surface() {
+    use std::num::NonZeroIsize;
+    use std::ptr::NonNull;
     use wgpu::rwh::{
         AndroidDisplayHandle, AndroidNdkWindowHandle, DisplayHandle, HasDisplayHandle,
         HasWindowHandle, RawDisplayHandle, RawWindowHandle, WindowHandle,
     };
-    use std::num::NonZeroIsize;
-    use std::ptr::NonNull;
 
     struct NdkWindow(NonNull<std::ffi::c_void>);
     // SAFETY: the address is an ANativeWindow the launcher keeps alive for as long as its surface
@@ -1015,9 +1015,7 @@ pub fn install_external_surface() {
     unsafe impl Send for NdkWindow {}
     unsafe impl Sync for NdkWindow {}
     impl HasWindowHandle for NdkWindow {
-        fn window_handle(
-            &self,
-        ) -> std::result::Result<WindowHandle<'_>, wgpu::rwh::HandleError> {
+        fn window_handle(&self) -> std::result::Result<WindowHandle<'_>, wgpu::rwh::HandleError> {
             // SAFETY: a live ANativeWindow, as above.
             let handle = unsafe {
                 AndroidNdkWindowHandle::new(NonZeroIsize::new(self.0.as_ptr() as isize).unwrap())
@@ -1026,9 +1024,7 @@ pub fn install_external_surface() {
         }
     }
     impl HasDisplayHandle for NdkWindow {
-        fn display_handle(
-            &self,
-        ) -> std::result::Result<DisplayHandle<'_>, wgpu::rwh::HandleError> {
+        fn display_handle(&self) -> std::result::Result<DisplayHandle<'_>, wgpu::rwh::HandleError> {
             Ok(unsafe {
                 DisplayHandle::borrow_raw(RawDisplayHandle::Android(AndroidDisplayHandle::new()))
             })

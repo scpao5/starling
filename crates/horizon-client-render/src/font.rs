@@ -369,45 +369,56 @@ fn load_bitmap(
 /// read once and kept for the process.
 fn device_cjk_font() -> Option<&'static [u8]> {
     static FOUND: std::sync::OnceLock<Option<&'static [u8]>> = std::sync::OnceLock::new();
-    FOUND.get_or_init(|| {
-        let dir = std::fs::read_dir("/system/fonts").ok()?;
-        let mut candidates: Vec<PathBuf> = dir
-            .filter_map(|e| e.ok())
-            .map(|e| e.path())
-            .filter(|p| {
-                matches!(
-                    p.extension().and_then(|e| e.to_str()),
-                    Some("ttf" | "otf" | "ttc")
-                )
-            })
-            .collect();
-        // A face named for Chinese first, so one is found without reading every file whole.
-        candidates.sort_by_key(|p| {
-            let n = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
-            let named = n.contains("cjk") || n.contains("han") || n.contains("sc") || n.contains("chinese");
-            (!named, std::cmp::Reverse(n.len()))
-        });
-        for path in candidates {
-            let Ok(data) = std::fs::read(&path) else {
-                continue;
-            };
-            if data.starts_with(b"OTTO") || data.starts_with(b"ttcf") {
-                continue;
+    FOUND
+        .get_or_init(|| {
+            let dir = std::fs::read_dir("/system/fonts").ok()?;
+            let mut candidates: Vec<PathBuf> = dir
+                .filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| {
+                    matches!(
+                        p.extension().and_then(|e| e.to_str()),
+                        Some("ttf" | "otf" | "ttc")
+                    )
+                })
+                .collect();
+            // A face named for Chinese first, so one is found without reading every file whole.
+            candidates.sort_by_key(|p| {
+                let n = p
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_lowercase();
+                let named = n.contains("cjk")
+                    || n.contains("han")
+                    || n.contains("sc")
+                    || n.contains("chinese");
+                (!named, std::cmp::Reverse(n.len()))
+            });
+            for path in candidates {
+                let Ok(data) = std::fs::read(&path) else {
+                    continue;
+                };
+                if data.starts_with(b"OTTO") || data.starts_with(b"ttcf") {
+                    continue;
+                }
+                let Ok(face) = ab_glyph::FontVec::try_from_vec(data.clone()) else {
+                    continue;
+                };
+                use ab_glyph::Font as _;
+                if face.glyph_id('中').0 != 0 && face.glyph_id('国').0 != 0 {
+                    log::info!(
+                        "Horizon: {} draws the CJK glyphs the skin has none for",
+                        path.display()
+                    );
+                    return Some(Box::leak(data.into_boxed_slice()) as &'static [u8]);
+                }
             }
-            let Ok(face) = ab_glyph::FontVec::try_from_vec(data.clone()) else {
-                continue;
-            };
-            use ab_glyph::Font as _;
-            if face.glyph_id('中').0 != 0 && face.glyph_id('国').0 != 0 {
-                log::info!("Horizon: {} draws the CJK glyphs the skin has none for", path.display());
-                return Some(Box::leak(data.into_boxed_slice()) as &'static [u8]);
-            }
-        }
-        log::warn!("Horizon: no face under /system/fonts has CJK glyphs");
-        None
-    })
-    .as_ref()
-    .copied()
+            log::warn!("Horizon: no face under /system/fonts has CJK glyphs");
+            None
+        })
+        .as_ref()
+        .copied()
 }
 
 fn load_true_type(root: &Path, p: &serde_json::Value) -> Option<TrueType> {

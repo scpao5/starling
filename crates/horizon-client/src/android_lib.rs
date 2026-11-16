@@ -113,8 +113,10 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_setSurface(
     }
     // NDK's own: libandroid.so is already loaded by the activity, and its prototype is stable.
     unsafe extern "C" {
-        fn ANativeWindow_fromSurface(env: *mut jni::sys::JNIEnv, surface: jni::sys::jobject)
-            -> *mut std::ffi::c_void;
+        fn ANativeWindow_fromSurface(
+            env: *mut jni::sys::JNIEnv,
+            surface: jni::sys::jobject,
+        ) -> *mut std::ffi::c_void;
     }
     let raw = env.get_raw();
     // SAFETY: a live Surface and the process's JNIEnv, both owned by the caller's thread; the

@@ -21,7 +21,8 @@ pub fn external_surface(instance: &wgpu::Instance) -> Option<wgpu::Surface<'stat
     guard.as_ref().and_then(|provider| provider(instance))
 }
 
-pub mod assets;pub mod assets;
+pub mod assets;
+pub mod assets;
 pub mod atlas_sources;
 pub mod audio;
 pub mod auth;
