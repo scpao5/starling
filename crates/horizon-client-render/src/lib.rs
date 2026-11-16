@@ -1,6 +1,20 @@
 //! The client's world data, rendering and screens: chunks, meshing, light, streaming, the renderer,
 //! the HUD, menus and settings. Gameplay (horizon-client) builds on it; nothing here reaches gameplay.
 #![forbid(unsafe_code)]
+/// A window a launcher outside this process handed the engine (an address, or 0 for none), for
+/// `gfx` to build its surface on instead of the activity's own window. The game crate sets it
+/// from the JNI call the launcher makes; nothing here knows about Android.
+static EXTERNAL_WINDOW: std::sync::Mutex<Option<usize>> = std::sync::Mutex::new(None);
+
+pub fn set_external_window(address: usize) {
+    *EXTERNAL_WINDOW.lock().unwrap_or_else(|e| e.into_inner()) =
+        if address == 0 { None } else { Some(address) };
+}
+
+pub fn android_external_window() -> Option<usize> {
+    *EXTERNAL_WINDOW.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 pub mod assets;
 pub mod atlas_sources;
 pub mod audio;

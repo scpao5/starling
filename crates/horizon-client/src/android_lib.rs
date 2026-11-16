@@ -98,6 +98,34 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_onPointerCa
     horizon_client::android::note_pointer_capture_lost();
 }
 
+/// `StarlingActivity.setSurface`: the launcher's SurfaceView, which the engine draws into instead
+/// of the activity's own window. `surface` is an android.view.Surface; null clears it and the
+/// activity's window is used again.
+#[unsafe(no_mangle)]
+extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_setSurface(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    surface: jni::objects::JObject,
+) {
+    if surface.is_null() {
+        horizon_client_render::set_external_window(0);
+        return;
+    }
+    // NDK's own: libandroid.so is already loaded by the activity, and its prototype is stable.
+    unsafe extern "C" {
+        fn ANativeWindow_fromSurface(env: *mut jni::sys::JNIEnv, surface: jni::sys::jobject)
+            -> *mut std::ffi::c_void;
+    }
+    let raw = env.get_raw();
+    // SAFETY: a live Surface and the process's JNIEnv, both owned by the caller's thread; the
+    // returned window outlives this call until the launcher replaces or releases it.
+    let window = unsafe { ANativeWindow_fromSurface(raw, surface.as_raw()) };
+    if window.is_null() {
+        return;
+    }
+    horizon_client_render::set_external_window(window as usize);
+}
+
 /// `StarlingActivity.onMinecraftRoot`: where the launcher's own Minecraft install is (FCL's
 /// `.minecraft`, or one of its version folders), when it has one of its own instead of the
 /// engine's `minecraft/` under the shared folder.

@@ -1564,6 +1564,60 @@ fn mip_chain(
 /// conformance version: Mesa's hasvk, which drives Ivy Bridge and Haswell,
 /// reports 0.0.0.0 while it works. `open_device` asks for them only on a second
 /// try at a backend that had no adapter at all.
+/// A surface for a window the launcher outside this process handed us (android::external_window):
+/// StarlingActivity draws the game into the launcher's own SurfaceView, and the launcher's views
+/// sit on top of it. None on other platforms, and on Android when no launcher set one, in which
+/// case the activity's own window is used.
+#[cfg(target_os = "android")]
+fn external_surface(instance: &wgpu::Instance) -> Option<wgpu::Surface<'static>> {
+    use wgpu::rwh::{
+        AndroidDisplayHandle, AndroidNdkWindowHandle, DisplayHandle, HandleError, HasDisplayHandle,
+        HasWindowHandle, RawDisplayHandle, RawWindowHandle, WindowHandle,
+    };
+    use std::num::NonZeroIsize;
+    use std::ptr::NonNull;
+
+    struct NdkWindow(NonNull<std::ffi::c_void>);
+    // SAFETY: the pointer is an ANativeWindow the launcher keeps alive for as long as its
+    // surface exists (setSurface / surfaceDestroyed bound its life), and the raw handles below
+    // only carry it outward.
+    unsafe impl Send for NdkWindow {}
+    unsafe impl Sync for NdkWindow {}
+    impl HasWindowHandle for NdkWindow {
+        fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+            // SAFETY: the address came from ANativeWindow_fromSurface and is valid until the
+            // launcher's surfaceDestroyed replaces it.
+            let handle = unsafe {
+                AndroidNdkWindowHandle::new(NonZeroIsize::new(self.0.as_ptr() as isize).unwrap())
+            };
+            Ok(unsafe { WindowHandle::borrow_raw(RawWindowHandle::AndroidNdk(handle)) })
+        }
+    }
+    impl HasDisplayHandle for NdkWindow {
+        fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+            Ok(unsafe {
+                DisplayHandle::borrow_raw(RawDisplayHandle::Android(AndroidDisplayHandle::new()))
+            })
+        }
+    }
+
+    use wgpu::rwh::HasWindowHandle as _;
+
+    let address = crate::android_external_window()?;
+    let ptr = NonNull::new(address as *mut std::ffi::c_void)?;
+    let window = NdkWindow(ptr);
+    let target = wgpu::SurfaceTargetUnsafe::RawHandle {
+        raw_display_handle: window.display_handle().ok()?.as_raw(),
+        raw_window_handle: window.window_handle().ok()?.as_raw(),
+    };
+    // SAFETY: the launcher guarantees the ANativeWindow outlives the surface it is used for.
+    unsafe { instance.create_surface_unsafe(target) }.ok()
+}
+#[cfg(not(target_os = "android"))]
+fn external_surface(_instance: &wgpu::Instance) -> Option<wgpu::Surface<'static>> {
+    None
+}
+
 fn instance_descriptor(
     backends: wgpu::Backends,
     window: Option<&Arc<Window>>,
@@ -1902,9 +1956,12 @@ async fn open_backend(
     let surface = if offscreen {
         None
     } else {
-        match instance.create_surface(window.clone()) {
-            Ok(surface) => Some(surface),
-            Err(e) => return Err(NoDevice::Failed(format!("{name} surface: {e}"))),
+        match external_surface(&instance) {
+            Some(surface) => Some(surface),
+            None => match instance.create_surface(window.clone()) {
+                Ok(surface) => Some(surface),
+                Err(e) => return Err(NoDevice::Failed(format!("{name} surface: {e}"))),
+            },
         }
     };
     let adapter = match instance
@@ -4531,7 +4588,10 @@ impl Renderer {
         self.surface = None;
         let surface = match spare {
             Some(surface) => surface,
-            None => self.instance.create_surface(self.window.clone())?,
+            None => match external_surface(&self.instance) {
+                Some(surface) => surface,
+                None => self.instance.create_surface(self.window.clone())?,
+            },
         };
         let configured = Self::configure(
             &self.device,

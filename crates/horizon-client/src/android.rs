@@ -981,6 +981,23 @@ pub fn vibrate_pad(device: i32, millis: i32, strong: i32, weak: i32) {
     });
 }
 
+/// A window a launcher outside this process handed us (StarlingActivity.setSurface, from a
+/// SurfaceView): the engine draws into that instead of the activity's own window, so the
+/// launcher's own views can sit on top of the game. Null when there is none, and then the
+/// activity's window is used as before.
+static EXTERNAL_WINDOW: std::sync::Mutex<Option<usize>> = std::sync::Mutex::new(None);
+
+/// The address of that window, if a launcher set one.
+pub fn external_window() -> Option<usize> {
+    *EXTERNAL_WINDOW.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// `StarlingActivity.setSurface`: the address of an ANativeWindow to draw into, or 0 for none.
+pub fn set_external_window(address: usize) {
+    *EXTERNAL_WINDOW.lock().unwrap_or_else(|e| e.into_inner()) =
+        if address == 0 { None } else { Some(address) };
+}
+
 /// The activity, for the event loop (`EventLoopBuilderExtAndroid::with_android_app`).
 pub fn android_app() -> AndroidApp {
     APP.get().expect("android_main sets the app first").clone()
