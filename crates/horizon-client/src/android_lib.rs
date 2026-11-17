@@ -58,8 +58,7 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_startEngine
             manager: jni::sys::jobject,
         ) -> *mut std::ffi::c_void;
     }
-    let assets = unsafe { AAssetManager_fromJava(env.get_raw(), assets.as_raw()) }
-        as *mut ndk::asset::AssetManager;
+    let assets = unsafe { AAssetManager_fromJava(env.get_raw(), assets.as_raw()) };
     // SAFETY: the VM outlives the process; the activity reference and the manager are the ones
     // just taken, kept for the game's whole run.
     unsafe {

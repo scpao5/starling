@@ -316,7 +316,7 @@ impl Split<'_> {
             )
         })?;
         guest.renderer = Some(build_renderer(
-            window.clone(),
+            Some(window.clone()),
             true,
             &guest.pack,
             &guest.gui,

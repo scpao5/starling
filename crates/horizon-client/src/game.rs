@@ -21174,15 +21174,17 @@ fn run_event_loop(mut game: Game<'_>) -> Result<()> {
         return game.error.take().map_or(Ok(()), Err);
     }
     #[cfg(not(target_os = "android"))]
-    let result = event_loop()?.run_app(&mut split);
-    game = split.host;
-    narrator::stop();
-    leave_fullscreen_after(&result, &mut game.settings);
-    result?;
-    horizon_client::discord_presence::stop();
-    write_report(&game)?;
-    if let Some(e) = game.error.take() {
-        return Err(e);
+    {
+        let result = event_loop()?.run_app(&mut split);
+        game = split.host;
+        narrator::stop();
+        leave_fullscreen_after(&result, &mut game.settings);
+        result?;
+        horizon_client::discord_presence::stop();
+        write_report(&game)?;
+        if let Some(e) = game.error.take() {
+            return Err(e);
+        }
     }
     Ok(())
 }

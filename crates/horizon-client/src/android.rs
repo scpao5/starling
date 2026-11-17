@@ -25,7 +25,7 @@ static ARGS: OnceLock<Vec<String>> = OnceLock::new();
 struct Launcher {
     vm: *mut jni::sys::JavaVM,
     activity: jni::objects::GlobalRef,
-    assets: *mut ndk::asset::AssetManager,
+    assets: *mut std::ffi::c_void,
 }
 // SAFETY: the VM outlives the process; the global reference is owned by this struct; the asset
 // manager belongs to the activity and lives as long as it does.
@@ -47,7 +47,7 @@ pub unsafe fn attach_launcher(
     vm: *mut jni::sys::JavaVM,
     activity: jni::objects::GlobalRef,
     files: PathBuf,
-    assets: *mut ndk::asset::AssetManager,
+    assets: *mut std::ffi::c_void,
 ) {
     let _ = LAUNCHER_FILES.set(files);
     let _ = LAUNCHER.set(Launcher {
@@ -139,19 +139,21 @@ pub(crate) fn with_activity<R>(
     f: impl FnOnce(&mut jni::JNIEnv, &jni::objects::JObject) -> jni::errors::Result<R>,
 ) -> Option<R> {
     // The launcher's activity when it started the game, else NativeActivity's.
-    let (vm_ptr, activity_obj) = if let Some(launcher) = LAUNCHER.get() {
-        (launcher.vm, launcher.activity.as_obj())
+    // SAFETY: the VM outlives the process; the activity is a reference this neither deletes nor
+    // keeps (the launcher's is a global one, alive for the whole run).
+    let (vm, activity) = if let Some(launcher) = LAUNCHER.get() {
+        (
+            unsafe { jni::JavaVM::from_raw(launcher.vm.cast()) }.ok()?,
+            unsafe { jni::objects::JObject::from_raw(launcher.activity.as_obj().as_raw()) },
+        )
     } else {
         let app = APP.get()?;
-        // SAFETY: the VM and the activity are NativeActivity's, alive as long as the process.
-        let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr().cast()) };
-        (app.vm_as_ptr().cast(), activity)
+        (
+            unsafe { jni::JavaVM::from_raw(app.vm_as_ptr().cast()) }.ok()?,
+            unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr().cast()) },
+        )
     };
-    // SAFETY: the VM outlives the process; the activity is a global reference this neither
-    // deletes nor keeps.
-    let vm = unsafe { jni::JavaVM::from_raw(vm_ptr.cast()) }.ok()?;
     let mut env = vm.attach_current_thread().ok()?;
-    let activity = activity_obj;
     let result = f(&mut env, &activity);
     if env.exception_check().unwrap_or(false) {
         let _ = env.exception_describe();
@@ -216,8 +218,12 @@ fn library_dir() -> Option<PathBuf> {
 fn asset(name: &str) -> Option<Vec<u8>> {
     let name = std::ffi::CString::new(name).ok()?;
     let mut asset = match LAUNCHER.get() {
-        // SAFETY: the manager belongs to the activity, which outlives the game.
-        Some(launcher) => unsafe { (*launcher.assets).open(&name)? },
+        // SAFETY: the manager belongs to the activity, which outlives the game; fromJava gave
+        // its pointer, which every call below only reads.
+        Some(launcher) => unsafe {
+            ndk::asset::AssetManager::from_ptr(std::ptr::NonNull::new(launcher.assets)?.cast())
+                .open(&name)?
+        },
         None => APP.get()?.asset_manager().open(&name)?,
     };
     let mut bytes = Vec::new();

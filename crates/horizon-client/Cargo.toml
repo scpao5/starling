@@ -88,6 +88,8 @@ rustix = { version = "1", default-features = false, features = ["std", "time", "
 # file manager, the file picker, the clipboard (cpal's version of jni).
 winit = { version = "0.30.13", features = ["android-native-activity"] }
 jni = "0.21.1"
+# The launcher's APK assets, when it starts the game without a NativeActivity (android.rs).
+ndk = { version = "0.9.0", default-features = false }
 # The mods, resource packs and shader packs catalog (game/mod_catalog.rs).
 starling-catalog = { path = "../starling-catalog" }
 

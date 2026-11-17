@@ -390,7 +390,7 @@ impl<'a> Split<'a> {
         let batching = self.host.settings.horizon.translucent_batching;
         let shader_pack = super::shader_packs::picked_pack_draws_flat(&self.host.settings);
         let built = build_renderer(
-            window.clone(),
+            Some(window.clone()),
             true,
             &self.host.pack,
             &self.host.gui,
@@ -467,7 +467,7 @@ impl<'a> Split<'a> {
         let batching = self.host.settings.horizon.translucent_batching;
         let shader_pack = super::shader_packs::picked_pack_draws_flat(&self.host.settings);
         let built = build_renderer(
-            window.clone(),
+            Some(window.clone()),
             false,
             &self.host.pack,
             &self.host.gui,

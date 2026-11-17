@@ -319,7 +319,7 @@ impl Game<'_> {
             .clone()
             .map(|window| {
                 build_renderer(
-                    window,
+                    Some(window),
                     self.options.offscreen,
                     &pack,
                     &gui,
