@@ -14,6 +14,7 @@ pub fn main_with(mods: crate::mod_api::Mods) {
 /// [`main_with`], running `after_log` once the log is open (Android's start-up notes, its
 /// platform set-up that logs).
 pub fn start(mods: crate::mod_api::Mods, after_log: impl FnOnce()) {
+    trace_entry("entry: start() entered");
     // First: a trait injection into anything below (logging, the crash handler) calls its mod.
     if crate::mod_api::MODS.set(mods).is_err() {
         log::warn!("Trait mods already installed; ignoring the second list");
@@ -55,6 +56,7 @@ pub fn start(mods: crate::mod_api::Mods, after_log: impl FnOnce()) {
         }
         (logging::game_home(), "client", "Render thread")
     };
+    trace_entry(&format!("entry: logging init, help {help}"));
     if !help {
         logging::init(
             logging::player_dir_override().unwrap_or(home.as_path()),
@@ -174,8 +176,8 @@ pub fn start(mods: crate::mod_api::Mods, after_log: impl FnOnce()) {
     {
         log::warn!("Native client hooks already installed; keeping the first callbacks");
     }
-    raise_open_file_limit();
     trace_entry("entry: hooks installed");
+    raise_open_file_limit();
     if let Err(error) = game::run_with() {
         trace_entry(&format!("entry: run_with failed: {error}"));
         // A bad command line is the caller's mistake, not a crash: no report.

@@ -21165,6 +21165,7 @@ fn run_event_loop(mut game: Game<'_>) -> Result<()> {
     // game drives its own steps and draws into the surface handed over before it started.
     #[cfg(target_os = "android")]
     {
+        crate::android::trace("loop: Android branch taken");
         // Before any renderer opens: it asks external_surface for the launcher's window and this
         // is what answers.
         crate::android::install_external_surface();
@@ -22004,6 +22005,8 @@ fn run_loading(
 pub use launch_api::{UsageError, exit_code};
 
 pub fn run_with() -> Result<()> {
+    #[cfg(target_os = "android")]
+    crate::android::trace("run_with: entered");
     let Some(mut options) = Options::read()? else {
         return Ok(());
     };
@@ -22147,6 +22150,8 @@ pub fn run_with() -> Result<()> {
         world_content::next_start().map(|next| &next.content),
         &mut |_| {},
     );
+    #[cfg(target_os = "android")]
+    crate::android::trace("run_with: loading resources");
     let loaded = load_resources(
         options.resources.clone(),
         launch_world(&options),
@@ -22168,6 +22173,8 @@ pub fn run_with() -> Result<()> {
         Audio::with_device(&options.resources, &early_settings.sound_device)
     };
     let resources = loaded.resources;
+    #[cfg(target_os = "android")]
+    crate::android::trace("run_with: resources loaded, starting the game");
     let game = start_game(
         &resources,
         loaded.pack,
@@ -22182,6 +22189,8 @@ pub fn run_with() -> Result<()> {
         None,
     )?;
     if let Some(game) = game {
+        #[cfg(target_os = "android")]
+        crate::android::trace("run_with: entering the loop");
         run_event_loop(game)?;
     }
     Ok(())
