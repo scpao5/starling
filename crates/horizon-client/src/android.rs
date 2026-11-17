@@ -1145,6 +1145,11 @@ fn command_line(home: &Path, private: &Path) -> (Vec<String>, Vec<(String, Strin
     (args, env)
 }
 
+/// One line in logcat under the tag `starling`, for the launcher's own JNI entry points.
+pub(crate) fn logcat_line(level: log::Level, message: &str) {
+    logcat(level, message);
+}
+
 /// The game's console lines in logcat, under the tag `starling`.
 fn logcat(level: log::Level, message: &str) {
     use std::ffi::CString;

@@ -35,7 +35,7 @@ fn android_main(app: AndroidApp) {
 #[unsafe(no_mangle)]
 extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_startEngine(
     mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
+    // An instance method: the second argument is the activity itself, not its class.
     activity: jni::objects::JObject,
     files: jni::objects::JString,
     assets: jni::objects::JObject,
@@ -64,10 +64,20 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_startEngine
     unsafe {
         horizon_client::android::attach_launcher(vm.get_java_vm_pointer(), activity, files, assets)
     };
-    std::thread::Builder::new()
+    horizon_client::android::logcat_line(
+        log::Level::Info,
+        &format!("startEngine: activity attached, files {}", files.display()),
+    );
+    match std::thread::Builder::new()
         .name("render".into())
         .spawn(|| horizon_client::android::launcher_main())
-        .ok();
+    {
+        Ok(_) => horizon_client::android::logcat_line(log::Level::Info, "startEngine: thread up"),
+        Err(e) => horizon_client::android::logcat_line(
+            log::Level::Error,
+            &format!("startEngine: the thread did not start: {e}"),
+        ),
+    }
 }
 
 /// `StarlingActivity.onStorage`, called on the UI thread before the game's thread starts.
