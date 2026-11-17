@@ -111,6 +111,11 @@ codegen-units = 256
 lto = "off"
 
 # The crates edits land in, lightly optimized; the dependencies stay fully optimized.
+# The renderer is edited as often as the game is (a surface, a window, a frame): at the release
+# profile's -O3 its 180k lines cost far more per iteration than they are worth.
+[profile.quick.package.horizon-client-render]
+opt-level = 1
+
 [profile.quick.package.horizon-client]
 opt-level = 1
 
