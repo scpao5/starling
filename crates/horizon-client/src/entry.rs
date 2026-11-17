@@ -175,7 +175,9 @@ pub fn start(mods: crate::mod_api::Mods, after_log: impl FnOnce()) {
         log::warn!("Native client hooks already installed; keeping the first callbacks");
     }
     raise_open_file_limit();
+    trace_entry("entry: hooks installed");
     if let Err(error) = game::run_with() {
+        trace_entry(&format!("entry: run_with failed: {error}"));
         // A bad command line is the caller's mistake, not a crash: no report.
         let usage = error.is::<game::UsageError>();
         #[cfg(target_os = "android")]
@@ -207,6 +209,15 @@ pub fn start(mods: crate::mod_api::Mods, after_log: impl FnOnce()) {
     }
     logging::flush();
 }
+
+/// A line for the launcher's start trace (android.rs writes it; this is the same file).
+#[cfg(target_os = "android")]
+fn trace_entry(message: &str) {
+    crate::android::trace(message);
+}
+
+#[cfg(not(target_os = "android"))]
+fn trace_entry(_message: &str) {}
 
 /// The JVM raises its open-file limit to the hard limit as it starts
 /// (`-XX:+MaxFDLimit`, on by default), so a vanilla server may hold as many

@@ -1485,6 +1485,7 @@ fn run(app: Option<AndroidApp>) {
     let home = game_folder(&private, &mut notes);
     trace(&format!("engine: home {home:?}"));
     let (args, env) = command_line(&home, &private);
+    trace(&format!("engine: command line {args:?}"));
     // SAFETY: no other thread of ours runs yet; the game reads these from its threads afterwards.
     unsafe {
         std::env::set_var("HORIZON_HOME", &home);
@@ -1503,6 +1504,7 @@ fn run(app: Option<AndroidApp>) {
             }
         }
     }
+    trace("engine: environment set");
     if let Err(e) = std::env::set_current_dir(&home) {
         logcat(
             log::Level::Error,
@@ -1537,8 +1539,11 @@ fn run(app: Option<AndroidApp>) {
     {
         log::warn!("Could not initialize diagnostics: {error}");
     }
+    trace("engine: diagnostics ready");
     crate::diagnostics::collect_exits(&private);
+    trace("engine: entering entry::start");
     crate::entry::start(Default::default(), || {
+        trace("engine: entry::start closure");
         log::info!(
             "Horizon: Android, game folder {}, private files {}, arguments {args:?}, environment {env:?}",
             home.display(),
