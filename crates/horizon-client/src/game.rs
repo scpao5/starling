@@ -54,6 +54,7 @@ mod advancements_screen;
 mod agent;
 mod agent_settings;
 mod allays;
+mod android_surface;
 mod armor_stands;
 mod arms;
 mod atlas_slots;
@@ -14216,7 +14217,7 @@ impl Game<'_> {
         old.queue.wait();
         drop(old);
         let mut renderer = build_renderer(
-            window,
+            Some(window),
             self.options.offscreen,
             &self.pack,
             &self.gui,
@@ -14250,7 +14251,7 @@ impl Game<'_> {
         gui: &UiResources,
     ) -> Result<Renderer> {
         build_renderer(
-            window,
+            Some(window),
             self.options.offscreen,
             pack,
             gui,
@@ -20705,7 +20706,8 @@ fn prepare_renderer_textures(pack: &PackResources) -> horizon_client::gfx::Prepa
 
 /// Upload pack textures and create the renderer on the window's device.
 fn build_renderer(
-    window: Arc<Window>,
+    // None on Android: the engine renders into the launcher's surface, not a winit window.
+    window: Option<Arc<Window>>,
     offscreen: bool,
     pack: &PackResources,
     gui: &UiResources,
@@ -21158,6 +21160,20 @@ fn run_event_loop(mut game: Game<'_>) -> Result<()> {
         return game.error.take().map_or(Ok(()), Err);
     }
     let mut split = split::Split::new(game);
+    // Android has no winit loop to run: the launcher's activity is not a NativeActivity, so the
+    // game drives its own steps and draws into the surface handed over before it started.
+    #[cfg(target_os = "android")]
+    {
+        // Before any renderer opens: it asks external_surface for the launcher's window and this
+        // is what answers.
+        crate::android::install_external_surface();
+        split.host.run_android_surface();
+        let mut game = split.host;
+        narrator::stop();
+        write_report(&game)?;
+        return game.error.take().map_or(Ok(()), Err);
+    }
+    #[cfg(not(target_os = "android"))]
     let result = event_loop()?.run_app(&mut split);
     game = split.host;
     narrator::stop();
@@ -21708,7 +21724,13 @@ impl Loading {
         options.world = None;
         options.server = None;
         let gui = self.gui.take().ok_or("missing menu bundle")?;
-        let window = self.window.clone().ok_or("window closed")?;
+        // Android has no window (the launcher's surface stands in); the desktop's loader only
+        // ever reaches this with one.
+        let window = match &self.window {
+            Some(window) => Some(window.clone()),
+            None if cfg!(target_os = "android") => None,
+            None => return Err("window closed".into()),
+        };
         // Keep the loader's device and swap in the real textures in one step.
         if let Some(renderer) = &mut self.renderer {
             renderer.release_surface();

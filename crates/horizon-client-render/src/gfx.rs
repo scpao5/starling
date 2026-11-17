@@ -1723,7 +1723,8 @@ fn surface_format(
 /// Offscreen rendering needs no surface, so it can use a GPU the window's
 /// display cannot present from (a headless compositor).
 async fn open_device(
-    window: &Arc<Window>,
+    // None on Android: the launcher hands its surface over (external_surface) instead.
+    window: Option<&Arc<Window>>,
     offscreen: bool,
     api: GraphicsApi,
     layers: u32,
@@ -1733,9 +1734,11 @@ async fn open_device(
     if api == GraphicsApi::Auto
         && !wgpu_backend
         && cfg!(target_os = "android")
-        && let Some(gpu) = vulkan_gpu_name(window)
-            .await
-            .filter(|name| rogue_vulkan_crashes(name))
+        && let Some(gpu) = match window {
+            Some(window) => vulkan_gpu_name(window).await,
+            None => None,
+        }
+        .filter(|name| rogue_vulkan_crashes(name))
     {
         log::warn!(
             "Horizon renderer: {gpu}'s Vulkan driver crashes in its first frame (GE8320 drivers \
@@ -1854,7 +1857,7 @@ enum NoDevice {
 /// all they get). Returns why the backend gave no device.
 async fn open_with_retry(
     backends: wgpu::Backends,
-    window: &Arc<Window>,
+    window: Option<&Arc<Window>>,
     offscreen: bool,
     layers: u32,
     allow_cpu: bool,
@@ -1887,24 +1890,27 @@ async fn open_with_retry(
 /// software adapter is taken only when `allow_cpu`.
 async fn open_backend(
     backends: wgpu::Backends,
-    window: &Arc<Window>,
+    // None on Android, where the surface comes from the launcher's window (external_surface).
+    window: Option<&Arc<Window>>,
     offscreen: bool,
     allow_nonconformant: bool,
     layers: u32,
     allow_cpu: bool,
 ) -> std::result::Result<Opened, NoDevice> {
     let name = backends_name(backends);
-    let instance = wgpu::Instance::new(instance_descriptor(
-        backends,
-        Some(window),
-        allow_nonconformant,
-    ));
+    let instance = wgpu::Instance::new(instance_descriptor(backends, window, allow_nonconformant));
     let surface = if offscreen {
         None
     } else {
         match crate::external_surface(&instance) {
             Some(surface) => Some(surface),
-            None => match instance.create_surface(window.clone()) {
+            // Android hands the surface over before the device opens, so this branch is the
+            // desktop's alone.
+            None => match instance.create_surface(
+                window
+                    .cloned()
+                    .expect("a window, or an external surface handed over first"),
+            ) {
                 Ok(surface) => Some(surface),
                 Err(e) => return Err(NoDevice::Failed(format!("{name} surface: {e}"))),
             },
@@ -2142,7 +2148,8 @@ impl Renderer {
 }
 impl Renderer {
     pub async fn new(
-        window: Arc<Window>,
+        // None on Android: the surface arrives from the launcher, not a winit window.
+        window: Option<Arc<Window>>,
         offscreen: bool,
         sprite_pixels: &[u8],
         sprite_size: u32,
@@ -2198,7 +2205,7 @@ impl Renderer {
             }
             None => {
                 let _step = crate::spans::startup::step("renderer.open_device");
-                open_device(&window, offscreen, api, layers).await?
+                open_device(window.as_ref(), offscreen, api, layers).await?
             }
         };
         // Computed once: the sprite arrays, the shaders' constants and the

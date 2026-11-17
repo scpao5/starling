@@ -1,0 +1,70 @@
+//! The Android loop: the game with no winit window, drawing into the launcher's surface.
+//!
+//! winit's event loop on Android is built around a `NativeActivity` and the `AndroidApp`
+//! android-activity produces for it. The launcher is an ordinary Activity that owns its own
+//! `TextureView`, so the two cannot meet: this loop is what `--headless` is for a client with no
+//! display, with the launcher's surface in place of the render target it never opens.
+//!
+//! Each step is what winit's `about_to_wait` does (`Game::idle`), and `idle` runs the frame
+//! through the same `RedrawRequested` path a window's game takes. Input comes from the launcher,
+//! queued by the JNI entry points and drained once a step.
+
+use super::Game;
+use super::event_loop::EventLoopCtl;
+use std::{
+    cell::Cell,
+    time::{Duration, Instant},
+};
+use winit::event_loop::ControlFlow;
+
+/// Time between frames. The client ticks at 20 Hz whatever the frame rate (a frame runs the
+/// ticks its elapsed time owes), so a frame per tick does all the work there is.
+const FRAME: Duration = Duration::from_millis(17);
+
+/// The loop's side of `EventLoopCtl`: what the game asked for during a step.
+pub(super) struct SurfaceLoop {
+    exit: Cell<bool>,
+    flow: Cell<ControlFlow>,
+}
+
+impl EventLoopCtl for SurfaceLoop {
+    fn exit(&self) {
+        self.exit.set(true);
+    }
+    fn set_control_flow(&self, flow: ControlFlow) {
+        self.flow.set(flow);
+    }
+}
+
+impl SurfaceLoop {
+    fn next_step(&self, started: Instant) -> Instant {
+        match self.flow.get() {
+            ControlFlow::WaitUntil(at) => at,
+            ControlFlow::Poll | ControlFlow::Wait => started + FRAME,
+        }
+    }
+}
+
+impl Game<'_> {
+    /// Runs the game until it asks to stop, drawing into the surface the launcher handed over
+    /// (`android::set_external_window`). Ends as a window's game does: `shut_down` saves.
+    pub(super) fn run_android_surface(&mut self) {
+        let ctl = SurfaceLoop {
+            exit: Cell::new(false),
+            flow: Cell::new(ControlFlow::Poll),
+        };
+        self.previous = Instant::now();
+        while !ctl.exit.get() {
+            let started = Instant::now();
+            ctl.flow.set(ControlFlow::Poll);
+            self.idle(&ctl);
+            if let Some(wait) = ctl
+                .next_step(started)
+                .checked_duration_since(Instant::now())
+            {
+                std::thread::sleep(wait);
+            }
+        }
+        self.shut_down();
+    }
+}
