@@ -65,16 +65,16 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_startEngine
         horizon_client::android::attach_launcher(vm.get_java_vm_pointer(), activity, files, assets)
     };
     horizon_client::android::logcat_line(
-        log::Level::Info,
+        false,
         &format!("startEngine: activity attached, files {}", files.display()),
     );
     match std::thread::Builder::new()
         .name("render".into())
         .spawn(|| horizon_client::android::launcher_main())
     {
-        Ok(_) => horizon_client::android::logcat_line(log::Level::Info, "startEngine: thread up"),
+        Ok(_) => horizon_client::android::logcat_line(false, "startEngine: thread up"),
         Err(e) => horizon_client::android::logcat_line(
-            log::Level::Error,
+            true,
             &format!("startEngine: the thread did not start: {e}"),
         ),
     }

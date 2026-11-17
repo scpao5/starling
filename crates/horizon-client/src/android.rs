@@ -1146,8 +1146,15 @@ fn command_line(home: &Path, private: &Path) -> (Vec<String>, Vec<(String, Strin
 }
 
 /// One line in logcat under the tag `starling`, for the launcher's own JNI entry points.
-pub(crate) fn logcat_line(level: log::Level, message: &str) {
-    logcat(level, message);
+pub fn logcat_line(error: bool, message: &str) {
+    logcat(
+        if error {
+            log::Level::Error
+        } else {
+            log::Level::Info
+        },
+        message,
+    );
 }
 
 /// The game's console lines in logcat, under the tag `starling`.
