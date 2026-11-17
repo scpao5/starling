@@ -871,7 +871,8 @@ pub struct Renderer {
     display: DisplayWatch,
     /// The watch was just made: the settings' Auto values take what it reported.
     display_fresh: bool,
-    window: Arc<Window>,
+    /// None on Android: the launcher's surface stands in for it.
+    window: Option<Arc<Window>>,
     pub device: wgpu::Device,
     /// The shader modules, layouts and pipelines kept for the next renderer on
     /// this device ([`reuse`]).
@@ -1824,7 +1825,7 @@ fn device_search(
 /// `open_device` on `order`'s backends in turn, taking an adapter of the CPU type
 /// (software rendering) only when `allow_cpu`.
 async fn open_device_with(
-    window: &Arc<Window>,
+    window: Option<&Arc<Window>>,
     offscreen: bool,
     order: &[wgpu::Backends],
     layers: u32,
@@ -2193,7 +2194,11 @@ impl Renderer {
                             .take();
                         Some(match spare {
                             Some(surface) => surface,
-                            None => renderer.instance.create_surface(window.clone())?,
+                            None => renderer.instance.create_surface(
+                                window
+                                    .clone()
+                                    .expect("a window, or a surface handed over first"),
+                            )?,
                         })
                     },
                     instance: renderer.instance.clone(),
@@ -2216,7 +2221,12 @@ impl Renderer {
         }
         let info = adapter.get_info();
         crate::graphics::suggest_reduced_far_detail(crate::graphics::lod_capped(&info));
-        let size = window.inner_size();
+        // Android has no window: the launcher's surface carries the size, and the config below
+        // falls back to a square until its first frame resizes it.
+        let size = window
+            .as_ref()
+            .map(|w| w.inner_size())
+            .unwrap_or(winit::dpi::PhysicalSize::new(1, 1));
         let max_side = device.limits().max_texture_dimension_2d;
         let (config, present_modes, hdr_output) = if let Some(surface) = &surface {
             let mut config = surface
@@ -4543,7 +4553,11 @@ impl Renderer {
             Some(surface) => surface,
             None => match crate::external_surface(&self.instance) {
                 Some(surface) => surface,
-                None => self.instance.create_surface(self.window.clone())?,
+                None => self.instance.create_surface(
+                    self.window
+                        .clone()
+                        .expect("a window, or a surface handed over first"),
+                )?,
             },
         };
         let configured = Self::configure(
@@ -5661,8 +5675,11 @@ impl Renderer {
             // Only HDR output asks the system about the display, so with HDR off the
             // game never waits on the compositor for it.
             self.display = if output.is_some() {
-                let (watch, now) =
-                    DisplayWatch::new(&self.window, self.surface.as_deref(), &self.adapter);
+                let (watch, now) = DisplayWatch::new(
+                    self.window.as_deref(),
+                    self.surface.as_deref(),
+                    &self.adapter,
+                );
                 crate::graphics::report(now);
                 self.display_fresh = true;
                 watch
@@ -6438,7 +6455,7 @@ impl Renderer {
                     &self.queue,
                     self.surface.as_ref(),
                     self.offscreen.as_ref(),
-                    &self.window,
+                    self.window.as_ref(),
                     &self.config,
                 )
             })
@@ -9528,7 +9545,9 @@ impl Renderer {
             // callbacks, one per refresh. Only VSync (Fifo) waits for the
             // display: with it off, vanilla's window draws uncapped.
             if self.config.present_mode == wgpu::PresentMode::Fifo {
-                self.window.pre_present_notify();
+                if let Some(window) = &self.window {
+                    window.pre_present_notify();
+                }
             }
             if first_frame {
                 startup_step(format_args!("presenting the first frame"));
@@ -11277,12 +11296,15 @@ const DISPLAY_POLL: std::time::Duration = std::time::Duration::from_secs(2);
 impl DisplayWatch {
     /// Starts watching, with what the system reports now.
     fn new(
-        window: &Window,
+        // None on Android: no window, and no compositor event to watch for.
+        window: Option<&Window>,
         surface: Option<&wgpu::Surface>,
         adapter: &wgpu::Adapter,
     ) -> (Self, Option<crate::graphics::Reported>) {
         #[cfg(target_os = "linux")]
-        if let Some((wayland, now)) = horizon_hdr::wayland::Watch::new(window) {
+        if let Some((wayland, now)) =
+            window.and_then(|window| horizon_hdr::wayland::Watch::new(window))
+        {
             let watch = Self {
                 wayland: Some(wayland),
                 polled: None,

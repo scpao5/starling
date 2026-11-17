@@ -207,7 +207,7 @@ impl FrameGen {
         queue: &wgpu::Queue,
         surface: Option<&Arc<wgpu::Surface<'static>>>,
         offscreen: Option<&wgpu::Texture>,
-        window: &Arc<winit::window::Window>,
+        window: Option<&Arc<winit::window::Window>>,
         config: &wgpu::SurfaceConfiguration,
     ) -> Option<(wgpu::Texture, wgpu::Texture)> {
         let Some(surface) = surface else {
@@ -226,7 +226,7 @@ impl FrameGen {
             self.presenter = None;
         }
         let presenter = self.presenter.get_or_insert_with(|| {
-            Presenter::start(device, queue, surface.clone(), window.clone(), config)
+            Presenter::start(device, queue, surface.clone(), window.cloned(), config)
         });
         // A closed channel: the thread died.
         let pair = if presenter.failed() {
@@ -438,7 +438,7 @@ impl Presenter {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         surface: Arc<wgpu::Surface<'static>>,
-        window: Arc<winit::window::Window>,
+        window: Option<Arc<winit::window::Window>>,
         config: &wgpu::SurfaceConfiguration,
     ) -> Self {
         // One pair waiting at most: the renderer then waits as for a swapchain image.
@@ -479,7 +479,7 @@ impl Presenter {
                         target.texture.size(),
                     );
                     queue.submit([encoder.finish()]);
-                    if vsync {
+                    if vsync && let Some(window) = &window {
                         window.pre_present_notify();
                     }
                     queue.present(target);
