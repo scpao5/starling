@@ -1092,7 +1092,11 @@ pub fn install_external_surface() {
     }
 
     horizon_client_render::set_external_surface_provider(Some(Box::new(|instance| {
-        let address = external_window()?;
+        let Some(address) = external_window() else {
+            trace("surface: the launcher has handed over no window yet");
+            return None;
+        };
+        trace(&format!("surface: window at {address:#x}"));
         let ptr = NonNull::new(address as *mut std::ffi::c_void)?;
         let window = NdkWindow(ptr);
         let target = wgpu::SurfaceTargetUnsafe::RawHandle {
@@ -1100,7 +1104,16 @@ pub fn install_external_surface() {
             raw_window_handle: window.window_handle().ok()?.as_raw(),
         };
         // SAFETY: the launcher guarantees the ANativeWindow outlives the surface it is used for.
-        unsafe { instance.create_surface_unsafe(target) }.ok()
+        match unsafe { instance.create_surface_unsafe(target) } {
+            Ok(surface) => {
+                trace("surface: made");
+                Some(surface)
+            }
+            Err(e) => {
+                trace(&format!("surface: not made: {e}"));
+                None
+            }
+        }
     })));
 }
 
@@ -1143,6 +1156,23 @@ fn command_line(home: &Path, private: &Path) -> (Vec<String>, Vec<(String, Strin
         }
     }
     (args, env)
+}
+
+/// One line for a start being read back: logcat's buffer rolls over within minutes on a phone,
+/// so the launcher's own engine_trace.txt is what is looked at.
+pub fn trace(message: &str) {
+    logcat(log::Level::Info, message);
+    let Some(dir) = LAUNCHER_FILES.get() else {
+        return;
+    };
+    use std::io::Write as _;
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join("engine_trace.txt"))
+    {
+        let _ = writeln!(file, "{message}");
+    }
 }
 
 /// One line in logcat under the tag `starling`, for the launcher's own JNI entry points.
@@ -1439,17 +1469,21 @@ fn run(app: Option<AndroidApp>) {
         // SAFETY: ends the process at once, as the end of the first run does.
         unsafe { _exit(0) }
     }
+    trace("engine: run() entered");
     crate::telemetry::mark_start();
     // A launcher's own window, when one was handed over before the loop starts.
     install_external_surface();
+    trace("engine: external surface installed");
     // The app's own files: resources, caches, the import inbox, test arguments.
     let private: PathBuf = launcher_files()
         .cloned()
         .or_else(|| app.as_ref().and_then(|a| a.internal_data_path()))
         .unwrap_or_else(|| PathBuf::from("/data/local/tmp/horizon"));
     let _ = std::fs::create_dir_all(&private);
+    trace(&format!("engine: private {private:?}"));
     let mut notes = Vec::new();
     let home = game_folder(&private, &mut notes);
+    trace(&format!("engine: home {home:?}"));
     let (args, env) = command_line(&home, &private);
     // SAFETY: no other thread of ours runs yet; the game reads these from its threads afterwards.
     unsafe {

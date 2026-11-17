@@ -54,10 +54,16 @@ impl Game<'_> {
             flow: Cell::new(ControlFlow::Poll),
         };
         self.previous = Instant::now();
+        crate::android::trace("loop: first step");
+        let mut steps: u64 = 0;
         while !ctl.exit.get() {
             let started = Instant::now();
             ctl.flow.set(ControlFlow::Poll);
             self.idle(&ctl);
+            steps += 1;
+            if steps == 1 || steps == 120 {
+                crate::android::trace(&format!("loop: step {steps}"));
+            }
             if let Some(wait) = ctl
                 .next_step(started)
                 .checked_duration_since(Instant::now())
