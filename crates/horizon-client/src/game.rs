@@ -21986,7 +21986,7 @@ fn run_loading(
     #[cfg(target_os = "android")]
     {
         crate::android::trace("loop: loading loop on the launcher's surface");
-        let ctl = super::android_surface::SurfaceLoop::new();
+        let ctl = android_surface::SurfaceLoop::new();
         while !ctl.exited() {
             match &mut app {
                 App::Loading(loading) => {
@@ -22001,33 +22001,41 @@ fn run_loading(
         }
         narrator::stop();
         return match app {
-            App::Ready(split) => run_event_loop(*split),
+            App::Ready(mut split) => {
+                crate::android::install_external_surface();
+                split.host.run_android_surface();
+                write_report(&split.host)?;
+                split.host.error.take().map_or(Ok(()), Err)
+            }
             App::Loading(mut loading) => loading.error.take().map_or(Ok(()), |e| Err(e.into())),
         };
     }
     #[cfg(not(target_os = "android"))]
-    let result = event_loop()?.run_app(&mut app);
-    narrator::stop();
-    match &mut app {
-        // Ready: splitscreen around P1's game.
-        App::Ready(split) => leave_fullscreen_after(&result, &mut split.host.settings),
-        App::Loading(loading) => leave_fullscreen_after(&result, &mut loading.settings),
-    }
-    result?;
-    horizon_client::discord_presence::stop();
-    match app {
-        App::Ready(mut split) => {
-            write_report(&split.host)?;
-            if let Some(e) = split.host.error.take() {
-                return Err(e);
+    {
+        let result = event_loop()?.run_app(&mut app);
+        narrator::stop();
+        match &mut app {
+            App::Ready(split) => leave_fullscreen_after(&result, &mut split.host.settings),
+            App::Loading(loading) => leave_fullscreen_after(&result, &mut loading.settings),
+        }
+        result?;
+        horizon_client::discord_presence::stop();
+        match app {
+            App::Ready(mut split) => {
+                write_report(&split.host)?;
+                if let Some(e) = split.host.error.take() {
+                    return Err(e);
+                }
+            }
+            App::Loading(loading) => {
+                if let Some(e) = loading.error {
+                    return Err(e);
+                }
             }
         }
-        App::Loading(loading) => {
-            if let Some(e) = loading.error {
-                return Err(e);
-            }
-        }
+        return Ok(());
     }
+    #[allow(unreachable_code)]
     Ok(())
 }
 
