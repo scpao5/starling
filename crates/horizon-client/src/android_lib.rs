@@ -29,6 +29,48 @@ fn android_main(app: AndroidApp) {
     horizon_client::android::main(app);
 }
 
+/// `StarlingActivity.startEngine`: the launcher's Activity is not a NativeActivity, so the engine
+/// gets its thread here instead. The activity, its APK's assets and its files directory are kept
+/// for the JNI calls that follow; the thread runs until the game ends.
+#[unsafe(no_mangle)]
+extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_startEngine(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    activity: jni::objects::JObject,
+    files: jni::objects::JString,
+    assets: jni::objects::JObject,
+) {
+    let Ok(vm) = env.get_java_vm() else {
+        return;
+    };
+    let Ok(activity) = env.new_global_ref(activity) else {
+        return;
+    };
+    let files: std::path::PathBuf = match env.get_string(&files) {
+        Ok(text) => std::path::PathBuf::from(String::from(text)),
+        Err(_) => return,
+    };
+    // SAFETY: the AssetManager is the activity's and lives as long as it does; fromJava returns
+    // the manager the object wraps, not a copy this owns.
+    unsafe extern "C" {
+        fn AAssetManager_fromJava(
+            env: *mut jni::sys::JNIEnv,
+            manager: jni::sys::jobject,
+        ) -> *mut std::ffi::c_void;
+    }
+    let assets = unsafe { AAssetManager_fromJava(env.get_raw(), assets.as_raw()) }
+        as *mut ndk::asset::AssetManager;
+    // SAFETY: the VM outlives the process; the activity reference and the manager are the ones
+    // just taken, kept for the game's whole run.
+    unsafe {
+        horizon_client::android::attach_launcher(vm.get_java_vm_pointer(), activity, files, assets)
+    };
+    std::thread::Builder::new()
+        .name("render".into())
+        .spawn(|| horizon_client::android::launcher_main())
+        .ok();
+}
+
 /// `StarlingActivity.onStorage`, called on the UI thread before the game's thread starts.
 #[unsafe(no_mangle)]
 extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_onStorage(

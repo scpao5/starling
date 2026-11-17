@@ -18,8 +18,49 @@ use winit::platform::android::activity::AndroidApp;
 
 static APP: OnceLock<AndroidApp> = OnceLock::new();
 static ARGS: OnceLock<Vec<String>> = OnceLock::new();
+
+/// The launcher's side of the process, when it is the one that started the game: an ordinary
+/// Activity has no `AndroidApp` to hand over, so the VM, the activity and the APK's assets are
+/// kept here instead. Every reader below prefers this and falls back to `APP`.
+struct Launcher {
+    vm: *mut jni::sys::JavaVM,
+    activity: jni::objects::GlobalRef,
+    assets: *mut ndk::asset::AssetManager,
+}
+// SAFETY: the VM outlives the process; the global reference is owned by this struct; the asset
+// manager belongs to the activity and lives as long as it does.
+unsafe impl Send for Launcher {}
+unsafe impl Sync for Launcher {}
+
+static LAUNCHER: OnceLock<Launcher> = OnceLock::new();
+/// Where the launcher keeps the game's own files (`Context.getFilesDir`).
+static LAUNCHER_FILES: OnceLock<PathBuf> = OnceLock::new();
 /// Shared storage's Starling folder, when the player allowed the app to use it.
 static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();
+
+/// `StarlingActivity.startEngine` on the game's thread: the launcher's activity, its files
+/// directory and its APK's assets, kept for every later JNI call into the activity.
+///
+/// # Safety
+/// `vm` is the process's JavaVM; `activity` and `assets` belong to the launcher and outlive it.
+pub unsafe fn attach_launcher(
+    vm: *mut jni::sys::JavaVM,
+    activity: jni::objects::GlobalRef,
+    files: PathBuf,
+    assets: *mut ndk::asset::AssetManager,
+) {
+    let _ = LAUNCHER_FILES.set(files);
+    let _ = LAUNCHER.set(Launcher {
+        vm,
+        activity,
+        assets,
+    });
+}
+
+/// The game's own files, from the launcher (`files`) or from NativeActivity.
+fn launcher_files() -> Option<&'static PathBuf> {
+    LAUNCHER_FILES.get()
+}
 
 /// The environment variable that carries the shared folder to every crate reading it: the game
 /// files' root is worked out in `accounts.rs`, which other crates include without having an
@@ -97,12 +138,20 @@ pub unsafe fn on_create(
 pub(crate) fn with_activity<R>(
     f: impl FnOnce(&mut jni::JNIEnv, &jni::objects::JObject) -> jni::errors::Result<R>,
 ) -> Option<R> {
-    let app = APP.get()?;
-    // SAFETY: the VM and the activity are NativeActivity's, alive as long as the process; the
-    // activity is a global reference, which this neither deletes nor keeps.
-    let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr().cast()) }.ok()?;
+    // The launcher's activity when it started the game, else NativeActivity's.
+    let (vm_ptr, activity_obj) = if let Some(launcher) = LAUNCHER.get() {
+        (launcher.vm, launcher.activity.as_obj())
+    } else {
+        let app = APP.get()?;
+        // SAFETY: the VM and the activity are NativeActivity's, alive as long as the process.
+        let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr().cast()) };
+        (app.vm_as_ptr().cast(), activity)
+    };
+    // SAFETY: the VM outlives the process; the activity is a global reference this neither
+    // deletes nor keeps.
+    let vm = unsafe { jni::JavaVM::from_raw(vm_ptr.cast()) }.ok()?;
     let mut env = vm.attach_current_thread().ok()?;
-    let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr().cast()) };
+    let activity = activity_obj;
     let result = f(&mut env, &activity);
     if env.exception_check().unwrap_or(false) {
         let _ = env.exception_describe();
@@ -166,7 +215,11 @@ fn library_dir() -> Option<PathBuf> {
 /// A file of the APK's assets/, whole.
 fn asset(name: &str) -> Option<Vec<u8>> {
     let name = std::ffi::CString::new(name).ok()?;
-    let mut asset = APP.get()?.asset_manager().open(&name)?;
+    let mut asset = match LAUNCHER.get() {
+        // SAFETY: the manager belongs to the activity, which outlives the game.
+        Some(launcher) => unsafe { (*launcher.assets).open(&name)? },
+        None => APP.get()?.asset_manager().open(&name)?,
+    };
     let mut bytes = Vec::new();
     std::io::Read::read_to_end(&mut asset, &mut bytes).ok()?;
     Some(bytes)
@@ -1318,12 +1371,16 @@ pub fn frame_hint(cpu: std::time::Duration, fps_limit: i32) {
         let Some(set_frame_rate) = hints.set_frame_rate else {
             return;
         };
-        let Some(window) = android_app().native_window() else {
+        // The launcher's surface when there is one, else NativeActivity's window.
+        let Some(ptr) = external_window().or_else(|| {
+            android_app()
+                .native_window()
+                .map(|w| w.ptr().as_ptr() as usize)
+        }) else {
             return;
         };
         // No cap: the screen's fastest rate (Android's own choice may stay at 60 Hz).
         let rate = cap.map_or_else(max_refresh_rate, |c| c as f32);
-        let ptr = window.ptr().as_ptr() as usize;
         if (state.window, state.voted) != (ptr, rate) {
             // SAFETY: the window is held for the call; 0 is
             // ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_DEFAULT, and a rate of 0 is no preference.
@@ -1342,6 +1399,17 @@ static STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::n
 /// (`HORIZON_HOME`, `HORIZON_PRIVATE`, `horizon-args.txt`'s), the platform hooks, then the game as
 /// the desktop binary starts it (`entry::start`), and the activity's end.
 pub fn main(app: AndroidApp) {
+    run(Some(app));
+}
+
+/// `StarlingActivity.startEngine` on a thread of its own: the launcher's Activity is not a
+/// NativeActivity, so there is no `AndroidApp`. Everything the game needs from one (its files
+/// directory, its APK's assets, its activity) comes from `attach_launcher` instead.
+pub fn launcher_main() {
+    run(None);
+}
+
+fn run(app: Option<AndroidApp>) {
     // winit's event loop is made once a process. Android can start a new activity in a process
     // the game is ending (a restart into a world with other mods did: "EventLoop can't be
     // recreated", reported as a crash): end it at once, and the activity's next start is fresh.
@@ -1357,8 +1425,9 @@ pub fn main(app: AndroidApp) {
     // A launcher's own window, when one was handed over before the loop starts.
     install_external_surface();
     // The app's own files: resources, caches, the import inbox, test arguments.
-    let private: PathBuf = app
-        .internal_data_path()
+    let private: PathBuf = launcher_files()
+        .cloned()
+        .or_else(|| app.as_ref().and_then(|a| a.internal_data_path()))
         .unwrap_or_else(|| PathBuf::from("/data/local/tmp/horizon"));
     let _ = std::fs::create_dir_all(&private);
     let mut notes = Vec::new();
@@ -1408,7 +1477,9 @@ pub fn main(app: AndroidApp) {
     });
     horizon_protocol::set_name_servers(dns_servers);
     let _ = ARGS.set(args.clone());
-    let _ = APP.set(app);
+    if let Some(app) = app {
+        let _ = APP.set(app);
+    }
     if let Err(error) =
         crate::diagnostics::initialize(&private, serde_json::json!({"abi":std::env::consts::ARCH}))
     {
