@@ -46,10 +46,11 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_startEngine
     let Ok(activity) = env.new_global_ref(activity) else {
         return;
     };
-    let files: std::path::PathBuf = match env.get_string(&files) {
-        Ok(text) => std::path::PathBuf::from(String::from(text)),
+    let files_dir: String = match env.get_string(&files) {
+        Ok(text) => String::from(text),
         Err(_) => return,
     };
+    let files = std::path::PathBuf::from(&files_dir);
     // SAFETY: the AssetManager is the activity's and lives as long as it does; fromJava returns
     // the manager the object wraps, not a copy this owns.
     unsafe extern "C" {
@@ -66,7 +67,7 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_startEngine
     };
     horizon_client::android::logcat_line(
         false,
-        &format!("startEngine: activity attached, files {}", files.display()),
+        &format!("startEngine: activity attached, files {files_dir}"),
     );
     match std::thread::Builder::new()
         .name("render".into())
