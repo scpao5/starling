@@ -20791,7 +20791,8 @@ fn build_renderer(
 /// pack's GUI atlas is ready) over one opaque white block-sprite layer, an
 /// empty border texture and the title panorama once the menu bundle is ready.
 fn loading_renderer(
-    window: Arc<Window>,
+    // None on Android: the launcher's surface stands in for the window this would open.
+    window: Option<Arc<Window>>,
     offscreen: bool,
     atlas: Option<&horizon_client::hud::HudAtlas>,
     panorama: Option<&Arc<horizon_client::gfx::panorama::Faces>>,
@@ -21321,7 +21322,7 @@ impl Loading {
         let offscreen = self.options.as_ref().is_some_and(|o| o.offscreen);
         let boot_step = startup::step("renderer.boot");
         match loading_renderer(
-            window.clone(),
+            Some(window.clone()),
             offscreen,
             Some(&self.boot),
             None,
@@ -21442,9 +21443,7 @@ impl Loading {
         self.title_drawn = false;
         horizon_client::ui_theme::reset_atlas();
         self.apply_menu_settings();
-        let Some(window) = self.window.clone() else {
-            return;
-        };
+        let window = self.window.clone();
         let offscreen = self.options.as_ref().is_some_and(|o| o.offscreen);
         if let Some(renderer) = &mut self.renderer {
             renderer.release_surface();

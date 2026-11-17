@@ -103,7 +103,7 @@ impl ApplicationHandler for Missing {
             .and_then(|window| {
                 let window = Arc::new(window);
                 let renderer = loading_renderer(
-                    window.clone(),
+                    Some(window.clone()),
                     false,
                     Some(&self.gui.atlas),
                     Some(&self.gui.panorama),
