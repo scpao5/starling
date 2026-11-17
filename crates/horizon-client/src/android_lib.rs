@@ -51,6 +51,7 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_startEngine
         Err(_) => return,
     };
     let files = std::path::PathBuf::from(&files_dir);
+    // The trace follows the game's own files: /data/local/tmp is not the app's to write.
     // SAFETY: the AssetManager is the activity's and lives as long as it does; fromJava returns
     // the manager the object wraps, not a copy this owns.
     unsafe extern "C" {
@@ -65,19 +66,28 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_startEngine
     unsafe {
         horizon_client::android::attach_launcher(vm.get_java_vm_pointer(), activity, files, assets)
     };
-    horizon_client::android::logcat_line(
-        false,
-        &format!("startEngine: activity attached, files {files_dir}"),
-    );
+    // logcat's buffer rolls over long before a launcher's start is looked at: the steps go to a
+    // file the launcher can read back.
+    let trace = |line: &str| {
+        use std::io::Write as _;
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(format!("{files_dir}/engine_trace.txt"))
+        {
+            let _ = writeln!(file, "{line}");
+        }
+        horizon_client::android::logcat_line(false, line);
+    };
+    trace(&format!(
+        "startEngine: activity attached, files {files_dir}"
+    ));
     match std::thread::Builder::new()
         .name("render".into())
         .spawn(|| horizon_client::android::launcher_main())
     {
-        Ok(_) => horizon_client::android::logcat_line(false, "startEngine: thread up"),
-        Err(e) => horizon_client::android::logcat_line(
-            true,
-            &format!("startEngine: the thread did not start: {e}"),
-        ),
+        Ok(_) => trace("startEngine: thread up"),
+        Err(e) => trace(&format!("startEngine: the thread did not start: {e}")),
     }
 }
 
