@@ -1118,8 +1118,8 @@ pub fn install_external_surface() {
 }
 
 /// The activity, for the event loop (`EventLoopBuilderExtAndroid::with_android_app`).
-pub fn android_app() -> AndroidApp {
-    APP.get().expect("android_main sets the app first").clone()
+pub fn android_app() -> Option<AndroidApp> {
+    APP.get().cloned()
 }
 
 /// The command line the desktop binary would get, without the program name.
@@ -1422,7 +1422,7 @@ pub fn frame_hint(cpu: std::time::Duration, fps_limit: i32) {
         // The launcher's surface when there is one, else NativeActivity's window.
         let Some(ptr) = external_window().or_else(|| {
             android_app()
-                .native_window()
+                .and_then(|a| a.native_window())
                 .map(|w| w.ptr().as_ptr() as usize)
         }) else {
             return;

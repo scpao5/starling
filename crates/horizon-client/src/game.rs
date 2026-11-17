@@ -21128,7 +21128,9 @@ fn event_loop() -> Result<EventLoop<()>> {
     {
         use winit::platform::android::EventLoopBuilderExtAndroid;
         Ok(EventLoop::builder()
-            .with_android_app(crate::android::android_app())
+            .with_android_app(
+                crate::android::android_app().expect("winit's loop runs on NativeActivity"),
+            )
             .build()?)
     }
     #[cfg(not(target_os = "android"))]
