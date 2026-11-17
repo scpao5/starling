@@ -37,6 +37,28 @@ impl EventLoopCtl for SurfaceLoop {
 }
 
 impl SurfaceLoop {
+    pub(super) fn new() -> Self {
+        Self {
+            exit: Cell::new(false),
+            flow: Cell::new(ControlFlow::Poll),
+        }
+    }
+
+    pub(super) fn exited(&self) -> bool {
+        self.exit.get()
+    }
+
+    /// One step's pause: what the game asked for, else a frame.
+    pub(super) fn sleep_a_step(&self) {
+        let started = Instant::now();
+        if let Some(wait) = self
+            .next_step(started)
+            .checked_duration_since(Instant::now())
+        {
+            std::thread::sleep(wait);
+        }
+    }
+
     fn next_step(&self, started: Instant) -> Instant {
         match self.flow.get() {
             ControlFlow::WaitUntil(at) => at,

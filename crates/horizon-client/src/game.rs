@@ -21470,7 +21470,9 @@ impl Loading {
         // The title frame's wait starts once its renderer is built.
         self.ui_at = Some(Instant::now());
     }
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+    /// One step of the loading loop. `EventLoopCtl` is all this asks of a loop (exit, and when
+    /// to wake next), so the launcher's own loop drives it as winit's does.
+    fn about_to_wait(&mut self, event_loop: &dyn EventLoopCtl) {
         // The loop may run once more after exit(): keep the first error, the
         // one that ended loading.
         if self.error.is_some() {
@@ -21979,6 +21981,31 @@ fn run_loading(
         suspended: false,
     };
     let mut app = App::Loading(Box::new(loading));
+    // Android drives its own steps: the launcher is not a NativeActivity, so winit's loop has no
+    // app to be built on.
+    #[cfg(target_os = "android")]
+    {
+        crate::android::trace("loop: loading loop on the launcher's surface");
+        let ctl = super::android_surface::SurfaceLoop::new();
+        while !ctl.exited() {
+            match &mut app {
+                App::Loading(loading) => {
+                    loading.about_to_wait(&ctl);
+                    if loading.error.is_some() || loading.menu.reload_packs && loading.suspended {
+                        break;
+                    }
+                }
+                App::Ready(_) => break,
+            }
+            ctl.sleep_a_step();
+        }
+        narrator::stop();
+        return match app {
+            App::Ready(split) => run_event_loop(*split),
+            App::Loading(mut loading) => loading.error.take().map_or(Ok(()), |e| Err(e.into())),
+        };
+    }
+    #[cfg(not(target_os = "android"))]
     let result = event_loop()?.run_app(&mut app);
     narrator::stop();
     match &mut app {
