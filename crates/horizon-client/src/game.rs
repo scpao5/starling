@@ -21593,6 +21593,8 @@ impl Loading {
         else {
             return;
         };
+        #[cfg(target_os = "android")]
+        crate::android::trace("draw: batch made");
         let mut batch = HudBatch::new(size);
         if self.failure.is_some() && self.menu.options_open {
             // The setup's settings: the menu's own screens, in the skin it put on.
@@ -21611,6 +21613,8 @@ impl Loading {
         }
         self.draw_menu_touch_editor(&mut batch, size);
         self.menu.frame_drawn((batch.width, batch.height));
+        #[cfg(target_os = "android")]
+        crate::android::trace("draw: menu drawn");
         let mut frame = loading_frame(&batch);
         frame.yaw = self.panorama_rotation.update(
             self.started.elapsed().as_secs_f32(),
@@ -21618,6 +21622,8 @@ impl Loading {
         );
         let diagnostic_prepared = diagnostic_started.elapsed();
         if let Some(renderer) = &mut self.renderer {
+            #[cfg(target_os = "android")]
+            crate::android::trace("draw: calling renderer.render");
             match renderer.render(&frame) {
                 Ok(true) if self.gui.is_some() && self.menu.pending.is_none() => {
                     self.title_drawn = true;
