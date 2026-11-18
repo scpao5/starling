@@ -8,6 +8,8 @@ pub mod android;
 pub mod entry;
 pub mod game;
 pub mod mod_api;
+#[cfg(target_os = "android")]
+pub mod native_crash;
 
 pub mod diagnostics;
 pub mod performance;
