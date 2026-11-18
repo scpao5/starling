@@ -76,8 +76,12 @@ impl Game<'_> {
             return;
         }
         self.input_used(InputMode::KeyboardMouse);
-        let Some(id) = self.window.as_ref().map(|w| w.id()) else {
-            return;
+        // The launcher draws into its own surface and has no window: the events carry the dummy
+        // id, as a headless game's do, and the game must not drop them for that.
+        let id = match self.window.as_ref() {
+            Some(window) => window.id(),
+            None if cfg!(target_os = "android") => WindowId::dummy(),
+            None => return,
         };
         let device_id = DeviceId::dummy();
         for event in events {

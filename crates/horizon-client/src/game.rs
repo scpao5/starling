@@ -22074,6 +22074,9 @@ fn run_loading(
             if loading_steps <= 3 || loading_steps % 200 == 0 {
                 crate::android::trace(&format!("loop: loading step {loading_steps}"));
             }
+            // The launcher's fps counter reads the frames this loop draws, and the loading
+            // screen is one of the loops that draws them.
+            crate::android::note_frame();
             match &mut app {
                 App::Loading(loading) => {
                     loading.about_to_wait(&ctl);
