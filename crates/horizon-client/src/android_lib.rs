@@ -464,12 +464,21 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_preparerSta
     _class: *mut std::ffi::c_void,
 ) -> jni::sys::jint {
     use horizon_client::preparer::Stage;
-    match horizon_client::preparer::stage() {
+    let stage = horizon_client::preparer::stage();
+    match &stage {
         Stage::Idle => 0,
         Stage::Java(..) => 1,
         Stage::Unpacking => 2,
-        Stage::Preparing(_) => 3,
+        Stage::Preparing(line) => {
+            horizon_client::android::trace(&format!("preparer: {line}"));
+            3
+        }
         Stage::Done => 4,
-        Stage::Failed(_) => 5,
+        Stage::Failed(e) => {
+            // The game's own logging is not up yet (the engine has not started): this is the
+            // only place the reason can be read.
+            horizon_client::android::trace(&format!("preparer: FAILED: {e}"));
+            5
+        }
     }
 }
