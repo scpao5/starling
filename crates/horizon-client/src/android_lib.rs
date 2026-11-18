@@ -94,7 +94,27 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_startEngine
     ));
     match std::thread::Builder::new()
         .name("render".into())
-        .spawn(|| horizon_client::android::launcher_main())
+        .spawn(|| {
+            // A phone has no terminal for a panic to scroll past: the message goes to the
+            // launcher instead of ending the process with SIGABRT.
+            let hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                let message = format!("engine stopped: {info}");
+                horizon_client::android::trace(&message);
+                horizon_client::android::report_failure(&message);
+                hook(info);
+            }));
+            if let Err(panic) = std::panic::catch_unwind(horizon_client::android::launcher_main) {
+                let message = panic
+                    .downcast_ref::<&str>()
+                    .map(|s| (*s).to_owned())
+                    .or_else(|| panic.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "the engine panicked".into());
+                let message = format!("engine stopped: {message}");
+                horizon_client::android::trace(&message);
+                horizon_client::android::report_failure(&message);
+            }
+        })
     {
         Ok(_) => trace("startEngine: thread up"),
         Err(e) => trace(&format!("startEngine: the thread did not start: {e}")),

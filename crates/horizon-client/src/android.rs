@@ -1695,12 +1695,30 @@ pub fn open_recovery() {
 /// its on-screen controls take over while the pointer is held (gameplay) and step aside when
 /// it is free (a screen, the title).
 pub fn notify_cursor_mode(captured: bool) {
-    // Through with_activity, which also clears an exception a missing method would leave: this
-    // runs on the game's thread every time the pointer changes, and a pending exception poisons
-    // every JNI call after it.
+    // On the activity itself: onEngineCursorMode is an instance method, and calling it on the
+    // Class object throws NoSuchMethodError, which aborts the process as a pending exception.
     let mode = jni::objects::JValue::Int(i32::from(!captured));
     with_activity(|env, activity| {
         env.call_method(activity, "onEngineCursorMode", "(I)V", &[mode])
             .map(drop)
+    });
+}
+
+/// Tells the launcher the engine stopped with `message`, so it can show it: a crash on a phone
+/// has no terminal to be read in.
+pub fn report_failure(message: &str) {
+    // One local frame: the string and the call that carries it belong together, and the string
+    // must not outlive the call.
+    with_activity(|env, activity| {
+        env.with_local_frame(4, |env| {
+            let text = env.new_string(message)?;
+            env.call_method(
+                activity,
+                "onEngineFailure",
+                "(Ljava/lang/String;)V",
+                &[jni::objects::JValue::Object(&text)],
+            )
+            .map(drop)
+        })
     });
 }
