@@ -21401,7 +21401,12 @@ impl Loading {
         }
         horizon_client::logging::flush();
     }
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, mut event: WindowEvent) {
+    fn window_event(
+        &mut self,
+        event_loop: &dyn EventLoopCtl,
+        id: WindowId,
+        mut event: WindowEvent,
+    ) {
         if self.window.as_ref().is_none_or(|w| w.id() != id) {
             return;
         }
@@ -22079,6 +22084,36 @@ fn run_loading(
             crate::android::note_frame();
             match &mut app {
                 App::Loading(loading) => {
+                    // The launcher's mouse, as window events: the landing screen's buttons
+                    // answer them exactly as the game's menus do.
+                    for event in crate::android::take_mouse_events() {
+                        let id = winit::window::WindowId::dummy();
+                        match event {
+                            crate::android::MouseEvent::Moved(x, y) => loading.window_event(
+                                &ctl,
+                                id,
+                                WindowEvent::CursorMoved {
+                                    device_id: winit::event::DeviceId::dummy(),
+                                    position: winit::dpi::PhysicalPosition::new(x, y),
+                                },
+                            ),
+                            crate::android::MouseEvent::Button(button, down) => loading
+                                .window_event(
+                                    &ctl,
+                                    id,
+                                    WindowEvent::MouseInput {
+                                        device_id: winit::event::DeviceId::dummy(),
+                                        state: if down {
+                                            winit::event::ElementState::Pressed
+                                        } else {
+                                            winit::event::ElementState::Released
+                                        },
+                                        button,
+                                    },
+                                ),
+                            _ => {}
+                        }
+                    }
                     loading.about_to_wait(&ctl);
                     if loading.error.is_some() || loading.menu.reload_packs && loading.suspended {
                         break;
