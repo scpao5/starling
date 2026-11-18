@@ -22134,6 +22134,14 @@ fn run_loading(
                         ctl.sleep_a_step();
                         continue;
                     };
+                    let loaded = match loaded {
+                        Ok(loaded) => loaded,
+                        Err(e) => {
+                            crate::android::trace(&format!("loop: failed: {e}"));
+                            loading.error = Some(e.into());
+                            break;
+                        }
+                    };
                     match loading.finish(loaded) {
                         Ok(Some(split)) => {
                             crate::android::trace("loop: loading handed off to the game");
