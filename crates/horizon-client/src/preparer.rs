@@ -152,14 +152,20 @@ fn run(resources: &Path) -> Result<(), String> {
         log::info!("Horizon: 32-bit preparation Java heap limit: {limit} MiB");
     }
     *shared() = Stage::Preparing("Starting Java".into());
+    // A launcher's install names its files one by one: the version JSON there is the launcher's
+    // own (FCL rewrites it, so its hash is not the one the pinned manifest has), while the jar,
+    // the libraries and the assets are Mojang's. Naming them skips the folder scan that would
+    // reject the rewritten JSON.
+    let root = crate::accounts::files_root();
+    let inputs = launcher_inputs(&root);
     let made = horizon_prepare::prepare(
         &horizon_prepare::Options {
             root: kit.clone(),
             import: true,
-            minecraft_dir: Some(crate::accounts::files_root()),
+            minecraft_dir: Some(root),
             server_jar: Some(server_jar),
             java_home: None,
-            inputs: Default::default(),
+            inputs,
             output: None,
         },
         &|line| {
@@ -191,6 +197,51 @@ fn run(resources: &Path) -> Result<(), String> {
         let _ = std::fs::remove_dir_all(done);
     }
     Ok(())
+}
+
+/// The files of a launcher's own install under `root` (`versions/<v>/`, `libraries/`,
+/// `assets/`), named for horizon-prepare: the ones it would otherwise search for and check by
+/// hash, which a launcher's rewritten version JSON fails.
+fn launcher_inputs(root: &std::path::Path) -> horizon_prepare::artifacts::Inputs {
+    use horizon_prepare::artifacts::Inputs;
+    let version = starling_account::files::Pins::starling().version;
+    let folder = root.join("versions").join(&version);
+    if !folder.is_dir() {
+        return Inputs::default();
+    }
+    let mut inputs = Inputs {
+        version_json: None,
+        client_jar: None,
+        libraries_dir: None,
+        assets_dir: None,
+    };
+    // Mojang's own JSON, when the app kept one: the launcher's version JSON is rewritten (FCL's
+    // hash is not the pinned one), so the original is read where the app saved it instead.
+    for pinned in [
+        crate::logging::private_home()
+            .join("minecraft")
+            .join(&version)
+            .join("manifest.json"),
+        root.join("manifest.json"),
+    ] {
+        if pinned.is_file() {
+            inputs.version_json = Some(pinned);
+            break;
+        }
+    }
+    let jar = folder.join(format!("{version}.jar"));
+    if jar.is_file() {
+        inputs.client_jar = Some(jar);
+    }
+    let libraries = root.join("libraries");
+    if libraries.is_dir() {
+        inputs.libraries_dir = Some(libraries);
+    }
+    let assets = root.join("assets");
+    if assets.is_dir() {
+        inputs.assets_dir = Some(assets);
+    }
+    inputs
 }
 
 /// The fetched files' sounds into `kit`'s prepared folder (horizon-prepare's `sounds`).
