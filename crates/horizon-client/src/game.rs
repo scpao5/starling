@@ -17208,7 +17208,9 @@ impl Game<'_> {
         // carry `WindowId::dummy()`.
         let ours = match &self.window {
             Some(w) => w.id() == id,
-            None => self.options.headless,
+            // No window: the frame comes from the launcher's surface (Android) or the headless
+            // loop, and either way there is one thing to compare.
+            None => self.options.headless || cfg!(target_os = "android"),
         };
         if !ours {
             return;
@@ -21559,6 +21561,10 @@ impl Loading {
             } else {
                 w.request_redraw();
             }
+        } else {
+            // No window to ask for a redraw (the launcher's surface): the frame is drawn here,
+            // as the headless loop does, or nothing is ever painted.
+            self.draw();
         }
         event_loop.set_control_flow(ControlFlow::Poll);
     }
