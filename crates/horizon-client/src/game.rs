@@ -22124,6 +22124,31 @@ fn run_loading(
                     if loading.error.is_some() || loading.menu.reload_packs && loading.suspended {
                         break;
                     }
+                    // The handoff App::about_to_wait makes for a window: the loading hands the
+                    // loaded resources over and the surface loop becomes the game's.
+                    if !loading.ready_for_handoff() {
+                        ctl.sleep_a_step();
+                        continue;
+                    }
+                    let Some(loaded) = loading.loaded.take() else {
+                        ctl.sleep_a_step();
+                        continue;
+                    };
+                    match loading.finish(loaded) {
+                        Ok(Some(split)) => {
+                            crate::android::trace("loop: loading handed off to the game");
+                            app = App::Ready(Box::new(split));
+                        }
+                        Ok(None) => {
+                            crate::android::trace("loop: done");
+                            break;
+                        }
+                        Err(e) => {
+                            crate::android::trace(&format!("loop: failed: {e}"));
+                            loading.error = Some(e);
+                            break;
+                        }
+                    }
                 }
                 App::Ready(_) => break,
             }

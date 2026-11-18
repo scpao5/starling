@@ -1411,6 +1411,7 @@ dependencies = [
  "miniz_oxide 0.8.9",
  "naga",
  "ndk",
+ "ndk-context",
  "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
