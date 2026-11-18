@@ -17,6 +17,8 @@ horizon-assets = { path = "../horizon-assets" }
 horizon-client-core = { path = "../horizon-client-core" }
 horizon-client-input = { path = "../horizon-client-input" }
 horizon-client-render = { path = "../horizon-client-render" }
+# The resources a fresh install has none of (`android::prepare_resources`).
+horizon-prepare = { path = "../horizon-prepare" }
 horizon-command = { path = "../horizon-command" }
 horizon-items = { path = "../horizon-items" }
 horizon-core = { path = "../horizon-core" }
