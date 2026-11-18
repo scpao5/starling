@@ -1695,24 +1695,12 @@ pub fn open_recovery() {
 /// its on-screen controls take over while the pointer is held (gameplay) and step aside when
 /// it is free (a screen, the title).
 pub fn notify_cursor_mode(captured: bool) {
-    let Some(launcher) = LAUNCHER.get() else {
-        return;
-    };
-    // SAFETY: the VM outlives the process; the reference is ours and valid here.
-    let Ok(vm) = (unsafe { jni::JavaVM::from_raw(launcher.vm) }) else {
-        return;
-    };
-    let Ok(mut env) = vm.attach_current_thread() else {
-        return;
-    };
-    let Ok(activity_class) = env.get_object_class(launcher.activity.as_obj()) else {
-        return;
-    };
-    let mode = i32::from(!captured);
-    let _ = env.call_method(
-        &activity_class,
-        "onEngineCursorMode",
-        "(I)V",
-        &[jni::objects::JValue::Int(mode)],
-    );
+    // Through with_activity, which also clears an exception a missing method would leave: this
+    // runs on the game's thread every time the pointer changes, and a pending exception poisons
+    // every JNI call after it.
+    let mode = jni::objects::JValue::Int(i32::from(!captured));
+    with_activity(|env, activity| {
+        env.call_method(activity, "onEngineCursorMode", "(I)V", &[mode])
+            .map(drop)
+    });
 }
