@@ -1699,9 +1699,10 @@ pub fn notify_cursor_mode(captured: bool) {
         return;
     };
     // SAFETY: the VM outlives the process; the reference is ours and valid here.
-    let Ok(mut env) =
-        unsafe { jni::JavaVM::from_raw(launcher.vm) }.and_then(|vm| vm.attach_current_thread())
-    else {
+    let Ok(vm) = (unsafe { jni::JavaVM::from_raw(launcher.vm) }) else {
+        return;
+    };
+    let Ok(mut env) = vm.attach_current_thread() else {
         return;
     };
     let Ok(activity_class) = env.get_object_class(launcher.activity.as_obj()) else {
