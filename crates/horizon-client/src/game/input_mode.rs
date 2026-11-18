@@ -11,6 +11,7 @@ use winit::{
     dpi::PhysicalPosition,
     event::{DeviceId, ElementState, MouseScrollDelta, TouchPhase, WindowEvent},
     keyboard::KeyCode,
+    window::WindowId,
 };
 
 impl Game<'_> {
