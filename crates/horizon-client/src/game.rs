@@ -21407,7 +21407,13 @@ impl Loading {
         id: WindowId,
         mut event: WindowEvent,
     ) {
-        if self.window.as_ref().is_none_or(|w| w.id() != id) {
+        // The launcher has no window and sends the dummy id (android::take_mouse_events): its
+        // mouse is the loading screen's pointer, so those events must be let through here.
+        let ours = match self.window.as_ref() {
+            Some(window) => window.id() == id,
+            None => cfg!(target_os = "android"),
+        };
+        if !ours {
             return;
         }
         if self.failure.is_some()
