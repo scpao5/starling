@@ -21911,6 +21911,13 @@ impl ApplicationHandler for App {
                 }
             }
         };
+        #[cfg(target_os = "android")]
+        match &step {
+            Step::Waiting => crate::android::trace("app: waiting"),
+            Step::Ready(_) => crate::android::trace("app: ready (the loading finished)"),
+            Step::Done => crate::android::trace("app: done"),
+            Step::Failed(e) => crate::android::trace(&format!("app: failed: {e}")),
+        }
         match step {
             Step::Waiting => {}
             Step::Ready(game) => *self = App::Ready(game),
