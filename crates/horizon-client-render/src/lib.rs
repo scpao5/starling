@@ -11,6 +11,32 @@ static EXTERNAL_SURFACE: std::sync::Mutex<Option<Box<ExternalSurfaceProvider>>> 
     std::sync::Mutex::new(None);
 
 /// Installs the provider, or clears it with None.
+/// A line for the launcher's start trace, installed by the client: the renderer has no logger of
+/// its own and the platform's is the client's.
+static TRACE: std::sync::OnceLock<fn(&str)> = std::sync::OnceLock::new();
+
+pub fn set_trace(trace: fn(&str)) {
+    let _ = TRACE.set(trace);
+}
+
+/// The handed-over surface's size in pixels, when one was handed over: the desktop's window
+/// answers for it there, and Android has only the ANativeWindow behind its surface.
+static SURFACE_SIZE: std::sync::OnceLock<fn() -> Option<(u32, u32)>> = std::sync::OnceLock::new();
+
+pub fn set_surface_size(size: fn() -> Option<(u32, u32)>) {
+    let _ = SURFACE_SIZE.set(size);
+}
+
+pub(crate) fn surface_size() -> Option<(u32, u32)> {
+    SURFACE_SIZE.get().and_then(|size| size())
+}
+
+pub(crate) fn trace_render(line: &str) {
+    if let Some(trace) = TRACE.get() {
+        trace(line);
+    }
+}
+
 pub fn set_external_surface_provider(provider: Option<Box<ExternalSurfaceProvider>>) {
     *EXTERNAL_SURFACE.lock().unwrap_or_else(|e| e.into_inner()) = provider;
 }

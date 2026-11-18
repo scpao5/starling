@@ -1091,6 +1091,23 @@ pub fn install_external_surface() {
         }
     }
 
+    horizon_client_render::set_trace(|line| trace(line));
+    // The launcher's surface has no window behind it: its size comes from the ANativeWindow.
+    horizon_client_render::set_surface_size(|| {
+        let address = external_window()?;
+        unsafe extern "C" {
+            fn ANativeWindow_getWidth(window: *mut std::ffi::c_void) -> i32;
+            fn ANativeWindow_getHeight(window: *mut std::ffi::c_void) -> i32;
+        }
+        // SAFETY: a live ANativeWindow the launcher keeps for as long as its surface exists.
+        let (width, height) = unsafe {
+            (
+                ANativeWindow_getWidth(address as *mut std::ffi::c_void),
+                ANativeWindow_getHeight(address as *mut std::ffi::c_void),
+            )
+        };
+        (width > 0 && height > 0).then(|| (width as u32, height as u32))
+    });
     horizon_client_render::set_external_surface_provider(Some(Box::new(|instance| {
         let Some(address) = external_window() else {
             trace("surface: the launcher has handed over no window yet");

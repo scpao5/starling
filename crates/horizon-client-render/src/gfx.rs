@@ -2223,10 +2223,12 @@ impl Renderer {
         crate::graphics::suggest_reduced_far_detail(crate::graphics::lod_capped(&info));
         // Android has no window: the launcher's surface carries the size, and the config below
         // falls back to a square until its first frame resizes it.
-        let size = window
-            .as_ref()
-            .map(|w| w.inner_size())
-            .unwrap_or(winit::dpi::PhysicalSize::new(1, 1));
+        // The window answers for the desktop; the launcher's surface carries its own size, and a
+        // swapchain configured at 1x1 against a 2660x1280 surface never hands out a frame.
+        let size = window.as_ref().map(|w| w.inner_size()).unwrap_or_else(|| {
+            let (width, height) = crate::surface_size().unwrap_or((1280, 720));
+            winit::dpi::PhysicalSize::new(width, height)
+        });
         let max_side = device.limits().max_texture_dimension_2d;
         let (config, present_modes, hdr_output) = if let Some(surface) = &surface {
             let mut config = surface
@@ -6463,11 +6465,13 @@ impl Renderer {
         // The present thread failed: this frame acquires as without frame generation.
         let fg = fg_frames.is_some();
         let mut fg_made = false;
+        crate::trace_render("frame: before acquire");
         let acquired = if fg {
             None
         } else {
             self.surface.as_ref().map(|s| s.get_current_texture())
         };
+        crate::trace_render(&format!("frame: acquired {}", acquired.is_some()));
         self.last_wait = landed + queued + acquire.elapsed();
         // Inside the acquire's time already.
         self.queue.take_waited();
