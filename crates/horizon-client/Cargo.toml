@@ -90,6 +90,9 @@ winit = { version = "0.30.13", features = ["android-native-activity"] }
 jni = "0.21.1"
 # The launcher's APK assets, when it starts the game without a NativeActivity (android.rs).
 ndk = { version = "0.9.0", default-features = false }
+# wgpu and winit read the process's AndroidContext, which ndk-glue initializes for a
+# NativeActivity: the launcher's start initializes it itself (android.rs).
+ndk-context = { version = "0.1.1", features = ["alloc"] }
 # The mods, resource packs and shader packs catalog (game/mod_catalog.rs).
 starling-catalog = { path = "../starling-catalog" }
 

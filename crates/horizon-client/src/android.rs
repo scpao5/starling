@@ -50,6 +50,14 @@ pub unsafe fn attach_launcher(
     assets: *mut std::ffi::c_void,
 ) {
     let _ = LAUNCHER_FILES.set(files);
+    // wgpu asks for the process's AndroidContext when it sets up a surface, and ndk-glue
+    // initializes it in front of a NativeActivity's main: this is the launcher's equivalent.
+    unsafe {
+        ndk_context::initialize_android_context(
+            vm.cast(),
+            activity.as_obj().as_raw() as *mut std::ffi::c_void,
+        );
+    }
     let _ = LAUNCHER.set(Launcher {
         vm,
         activity,
