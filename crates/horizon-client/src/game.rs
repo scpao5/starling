@@ -18847,8 +18847,9 @@ impl Game<'_> {
             } else {
                 w.request_redraw();
             }
-        } else if self.options.headless {
-            // The headless loop paces the frames itself (`run_headless`).
+        } else if self.options.headless || cfg!(target_os = "android") {
+            // The headless loop paces the frames itself (`run_headless`); the launcher's surface
+            // loop has no window to ask for a redraw, so the frame is drawn here as it is there.
             self.handle_window_event(
                 event_loop,
                 WindowId::dummy(),
