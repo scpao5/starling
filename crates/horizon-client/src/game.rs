@@ -22044,7 +22044,13 @@ fn run_loading(
             loading.resume_on_surface(&ctl);
             crate::android::trace("loop: resumed returned");
         }
+        crate::android::trace("loop: entering the loading loop");
+        let mut loading_steps: u32 = 0;
         while !ctl.exited() {
+            loading_steps += 1;
+            if loading_steps <= 3 || loading_steps % 200 == 0 {
+                crate::android::trace(&format!("loop: loading step {loading_steps}"));
+            }
             match &mut app {
                 App::Loading(loading) => {
                     loading.about_to_wait(&ctl);
@@ -22056,6 +22062,10 @@ fn run_loading(
             }
             ctl.sleep_a_step();
         }
+        crate::android::trace(&format!(
+            "loop: loading loop ended after {loading_steps} steps, exited {}",
+            ctl.exited()
+        ));
         narrator::stop();
         return match app {
             App::Ready(mut split) => {
