@@ -21543,11 +21543,18 @@ impl Loading {
             event_loop.set_control_flow(ControlFlow::WaitUntil(Instant::now() + frame));
             return;
         }
+        #[cfg(target_os = "android")]
+        crate::android::trace("loading step: polling menu resources");
         if let Err(error) = self.poll_menu_resources() {
             self.error = Some(error);
             event_loop.exit();
             return;
         }
+        #[cfg(target_os = "android")]
+        crate::android::trace(&format!(
+            "loading step: resources polled, detached {}",
+            self.renderer.as_ref().is_some_and(|r| r.detached)
+        ));
         if self.renderer.as_ref().is_some_and(|r| r.detached) {
             // In the background (Android), as Game::about_to_wait.
             event_loop.set_control_flow(ControlFlow::WaitUntil(
@@ -21564,7 +21571,11 @@ impl Loading {
         } else {
             // No window to ask for a redraw (the launcher's surface): the frame is drawn here,
             // as the headless loop does, or nothing is ever painted.
+            #[cfg(target_os = "android")]
+            crate::android::trace("loading step: drawing");
             self.draw();
+            #[cfg(target_os = "android")]
+            crate::android::trace("loading step: drawn");
         }
         event_loop.set_control_flow(ControlFlow::Poll);
     }
