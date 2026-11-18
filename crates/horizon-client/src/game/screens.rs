@@ -378,9 +378,11 @@ impl Game<'_> {
     }
     /// Whether the dedicated-server button shows: a world of this window's own, run here, that
     /// a phone's player can hand to a server (a guest of someone else's world cannot).
+    // The launcher has no command line to hand the world over with, and the engine it hosts
+    // cannot run a dedicated server here: the button is off until that works.
     #[cfg(target_os = "android")]
     fn dedicated_offer(&self) -> bool {
-        !self.external_server() && self.integrated.is_some()
+        false && !self.external_server() && self.integrated.is_some()
     }
     #[cfg(not(target_os = "android"))]
     fn dedicated_offer(&self) -> bool {

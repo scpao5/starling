@@ -7983,6 +7983,18 @@ impl Game<'_> {
             // InputQuirks.RESTORE_KEY_STATE_AFTER_MOUSE_GRAB is off (macOS).
             self.restore_held_keys();
         }
+        // The launcher has no window: its capture is the activity's own pointer, and its
+        // controls follow the mode the game asks for here.
+        #[cfg(target_os = "android")]
+        if self.window.is_none() {
+            let held =
+                capture && self.input_mode == horizon_client::input_mode::InputMode::KeyboardMouse;
+            if held != self.captured {
+                self.captured = held;
+                crate::android::notify_cursor_mode(held);
+            }
+            return;
+        }
         let Some(window) = &self.window else { return };
         let size = self.renderer.as_ref().map_or_else(
             || window.inner_size().into(),

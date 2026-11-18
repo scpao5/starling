@@ -1690,3 +1690,28 @@ pub fn open_recovery() {
             .map(drop)
     });
 }
+
+/// Tells the launcher the pointer's grab state, as a Java game's `onCursorModeChange` does:
+/// its on-screen controls take over while the pointer is held (gameplay) and step aside when
+/// it is free (a screen, the title).
+pub fn notify_cursor_mode(captured: bool) {
+    let Some(launcher) = LAUNCHER.get() else {
+        return;
+    };
+    // SAFETY: the VM outlives the process; the reference is ours and valid here.
+    let Ok(mut env) =
+        unsafe { jni::JavaVM::from_raw(launcher.vm) }.and_then(|vm| vm.attach_current_thread())
+    else {
+        return;
+    };
+    let Ok(activity_class) = env.get_object_class(launcher.activity.as_obj()) else {
+        return;
+    };
+    let mode = i32::from(!captured);
+    let _ = env.call_method(
+        &activity_class,
+        "onEngineCursorMode",
+        "(I)V",
+        &[jni::objects::JValue::Int(mode)],
+    );
+}

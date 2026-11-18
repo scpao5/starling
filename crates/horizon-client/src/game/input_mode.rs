@@ -74,6 +74,8 @@ impl Game<'_> {
 
         let events = crate::android::take_mouse_events();
         if events.is_empty() {
+            // A key came and went with no mouse event beside it: the keys were handled above,
+            // and returning here is what the loop expects of an idle iteration.
             return;
         }
         self.input_used(InputMode::KeyboardMouse);
