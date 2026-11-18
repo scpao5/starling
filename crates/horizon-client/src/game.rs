@@ -21254,6 +21254,8 @@ impl Loading {
             || self.ui_at.is_none_or(|at| at.elapsed() >= TITLE_FRAME_WAIT)
     }
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        #[cfg(target_os = "android")]
+        crate::android::trace("loading: resumed");
         self.suspended = false;
         if let Some(window) = &self.window {
             // Back from the background (Android), as Game::resumed.
@@ -21353,6 +21355,36 @@ impl Loading {
         horizon_client::hud::GUI_SCALE.store(self.settings.gui_scale, Ordering::Relaxed);
         self.window = Some(window);
     }
+    /// What winit's `resumed` does on the desktop, for a launcher that hands its surface over
+    /// instead of a window: the renderer is built and draws into that surface from the first frame.
+    fn resume_on_surface(&mut self, event_loop: &dyn EventLoopCtl) {
+        self.suspended = false;
+        let offscreen = self.options.as_ref().is_some_and(|o| o.offscreen);
+        let boot_step = startup::step("renderer.boot");
+        match loading_renderer(
+            None,
+            false,
+            Some(&self.boot),
+            None,
+            None,
+            self.settings.horizon.api,
+        ) {
+            Ok(r) => {
+                self.renderer = Some(r);
+                crate::android::trace("loading: boot renderer built");
+            }
+            Err(e) => {
+                crate::android::trace(&format!("loading: boot renderer failed: {e}"));
+                self.error = Some(e);
+                event_loop.exit();
+                return;
+            }
+        }
+        drop(boot_step);
+        horizon_client::hud::GUI_SCALE.store(self.settings.gui_scale, Ordering::Relaxed);
+        let _ = offscreen;
+    }
+
     /// The window is going away (Android): its surface goes with it, and the log is flushed
     /// before the system may end the process.
     fn suspended(&mut self) {
@@ -21987,6 +22019,14 @@ fn run_loading(
     {
         crate::android::trace("loop: loading loop on the launcher's surface");
         let ctl = android_surface::SurfaceLoop::new();
+        // winit makes this call when the loop starts (resumed), and it is what builds the
+        // renderer: without it nothing is ever drawn. The launcher's surface stands in for the
+        // window it would otherwise open.
+        if let App::Loading(loading) = &mut app {
+            crate::android::trace("loop: calling resumed");
+            loading.resume_on_surface(&ctl);
+            crate::android::trace("loop: resumed returned");
+        }
         while !ctl.exited() {
             match &mut app {
                 App::Loading(loading) => {
