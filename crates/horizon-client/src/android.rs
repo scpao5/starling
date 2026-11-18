@@ -1158,6 +1158,33 @@ fn command_line(home: &Path, private: &Path) -> (Vec<String>, Vec<(String, Strin
     (args, env)
 }
 
+/// Frames the loop has drawn, and when it last counted them: the launcher's fps counter reads the
+/// difference (`getFps`), and the game itself keeps none.
+static FRAMES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static FPS_WINDOW: std::sync::Mutex<Option<(std::time::Instant, u64)>> =
+    std::sync::Mutex::new(None);
+
+/// One frame was drawn: the counter `getFps` reports from.
+pub fn note_frame() {
+    FRAMES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Frames a second, measured against the last call (the launcher asks once a second).
+pub fn fps() -> i32 {
+    let frames = FRAMES.load(std::sync::atomic::Ordering::Relaxed);
+    let now = std::time::Instant::now();
+    let mut window = FPS_WINDOW.lock().unwrap_or_else(|e| e.into_inner());
+    let previous = window.replace((now, frames));
+    let Some((then, counted)) = previous else {
+        return 0;
+    };
+    let seconds = now.duration_since(then).as_secs_f32();
+    if seconds < 0.2 {
+        return 0;
+    }
+    ((frames.saturating_sub(counted)) as f32 / seconds).round() as i32
+}
+
 /// One line for a start being read back: logcat's buffer rolls over within minutes on a phone,
 /// so the launcher's own engine_trace.txt is what is looked at.
 pub fn trace(message: &str) {

@@ -82,6 +82,7 @@ impl Game<'_> {
             let started = Instant::now();
             ctl.flow.set(ControlFlow::Poll);
             self.idle(&ctl);
+            crate::android::note_frame();
             steps += 1;
             if steps == 1 || steps == 120 {
                 crate::android::trace(&format!("loop: step {steps}"));

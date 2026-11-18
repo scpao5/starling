@@ -29,6 +29,16 @@ fn android_main(app: AndroidApp) {
     horizon_client::android::main(app);
 }
 
+/// `CallbackBridge.getFps`: the fps the launcher's counter shows. The game keeps none of its own,
+/// so the loop counts the frames it draws and this measures them.
+#[unsafe(no_mangle)]
+extern "system" fn Java_org_lwjgl_glfw_CallbackBridge_getFps(
+    _env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+) -> jni::sys::jint {
+    horizon_client::android::fps()
+}
+
 /// `StarlingActivity.startEngine`: the launcher's Activity is not a NativeActivity, so the engine
 /// gets its thread here instead. The activity, its APK's assets and its files directory are kept
 /// for the JNI calls that follow; the thread runs until the game ends.
