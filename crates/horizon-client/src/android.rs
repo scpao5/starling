@@ -1157,10 +1157,24 @@ pub fn args() -> Vec<String> {
 /// environment variable (`HORIZON_GPU_CULL=0`, `WGPU_BACKEND=...`). It sits in the folder a file
 /// manager reaches, so a phone with no command line can still start the dedicated server
 /// (`--dedicated --nogui --control`).
+
+/// Where the prepared resources are: `resources/` beside the game folder in shared storage when
+/// it holds a pack, else the app's own `files/resources`.
+fn resources_dir(home: &Path, private: &Path) -> PathBuf {
+    let shared = home.join("resources");
+    if shared.is_dir() {
+        return shared;
+    }
+    private.join("resources")
+}
+
 fn command_line(home: &Path, private: &Path) -> (Vec<String>, Vec<(String, String)>) {
+    // The prepared resources are ~800 MB and outlive a reinstall: beside the game's own files,
+    // in shared storage, when they are there. The app's own files are the fallback (a fresh
+    // install, or a phone that gave no shared folder).
     let mut args = vec![
         "--resources".to_owned(),
-        private.join("resources").display().to_string(),
+        resources_dir(home, private).display().to_string(),
     ];
     let mut env = Vec::new();
     let text = std::fs::read_to_string(home.join("horizon-args.txt")).unwrap_or_default();
@@ -1704,6 +1718,14 @@ pub fn notify_cursor_mode(captured: bool) {
         env.call_method(activity, "onEngineCursorMode", "(I)V", &[mode])
             .map(drop)
     });
+}
+
+/// Shows the engine's fatal error in the launcher, which has no terminal to read it in. On
+/// Android `diagnostics::fatal_error` is the one place every startup failure passes through.
+pub fn show_fatal_error(error: &str) {
+    let message = format!("Horizon stopped: {error}");
+    trace(&message);
+    report_failure(&message);
 }
 
 /// Tells the launcher the engine stopped with `message`, so it can show it: a crash on a phone

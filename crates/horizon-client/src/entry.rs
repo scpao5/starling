@@ -185,6 +185,9 @@ pub fn start(mods: crate::mod_api::Mods, after_log: impl FnOnce()) {
         #[cfg(target_os = "android")]
         if !usage {
             crate::diagnostics::fatal_error(&error.to_string());
+            // And on the screen: a phone has no terminal, so the message would only sit in a
+            // file the player never opens.
+            crate::android::show_fatal_error(&error.to_string());
         }
         log::error!("Horizon: {error}");
         logging::flush();

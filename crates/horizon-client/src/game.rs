@@ -22151,6 +22151,7 @@ fn run_loading(
                         Ok(loaded) => loaded,
                         Err(e) => {
                             crate::android::trace(&format!("loop: failed: {e}"));
+                            crate::android::show_fatal_error(&e);
                             loading.error = Some(e.into());
                             break;
                         }
@@ -22166,6 +22167,7 @@ fn run_loading(
                         }
                         Err(e) => {
                             crate::android::trace(&format!("loop: failed: {e}"));
+                            crate::android::show_fatal_error(&e);
                             loading.error = Some(e);
                             break;
                         }
