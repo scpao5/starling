@@ -22029,6 +22029,16 @@ fn run_loading(
         // winit makes this call when the loop starts (resumed), and it is what builds the
         // renderer: without it nothing is ever drawn. The launcher's surface stands in for the
         // window it would otherwise open.
+        // The launcher's surface arrives from its UI thread, a moment after this thread starts:
+        // a renderer built before it would have nothing to draw into.
+        let waited = Instant::now();
+        while crate::android::external_window().is_none() && waited.elapsed().as_secs() < 10 {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        crate::android::trace(&format!(
+            "loop: surface waited {} ms",
+            waited.elapsed().as_millis()
+        ));
         if let App::Loading(loading) = &mut app {
             crate::android::trace("loop: calling resumed");
             loading.resume_on_surface(&ctl);
