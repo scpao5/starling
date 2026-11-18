@@ -169,9 +169,9 @@ fn run(resources: &Path) -> Result<(), String> {
             // app may not.
             (
                 "LD_LIBRARY_PATH".into(),
-                format!("{}:{}", env(&jre.join("lib")), env(&library)),
+                format!("{}:{}", env(&jre_dir.join("lib")), env(&library)),
             ),
-            ("JAVA_HOME".into(), env(&jre)),
+            ("JAVA_HOME".into(), env(&jre_dir)),
             ("TMPDIR".into(), env(&temp)),
             (
                 "JAVA_TOOL_OPTIONS".into(),
@@ -224,7 +224,7 @@ fn run(resources: &Path) -> Result<(), String> {
     })
     .map_err(|e| format!("Control textures: {e}"))?;
     // Everything the game reads is in the resources now: the runtime and the work files go.
-    for done in [&jre, &kit.join(".local"), &temp] {
+    for done in [&jre_dir, &kit.join(".local"), &temp] {
         let _ = std::fs::remove_dir_all(done);
     }
     Ok(())
