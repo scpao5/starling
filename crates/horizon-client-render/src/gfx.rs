@@ -9542,7 +9542,9 @@ impl Renderer {
             }
         }
         // The frame's own waits for the submit thread (its queue writes and passes).
+        crate::trace_render("frame: waiting for the submit thread");
         self.last_wait += self.queue.take_waited();
+        crate::trace_render("frame: submit thread waited");
         let present = Instant::now();
         if let Some(surface_frame) = surface_frame {
             // On Wayland this ties RedrawRequested to the compositor's frame
@@ -9556,7 +9558,9 @@ impl Renderer {
             if first_frame {
                 startup_step(format_args!("presenting the first frame"));
             }
+            crate::trace_render("frame: presenting");
             self.queue.present(surface_frame);
+            crate::trace_render("frame: presented");
             if self.hdr.is_some()
                 && let Some(marker) = self.hdr_marker.take()
             {
