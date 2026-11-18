@@ -99,6 +99,24 @@ pub fn start(resources: PathBuf) {
     }
 }
 
+/// The launcher's own Java 25 (`app_runtime/java/jre25` in the app's files), the one FCL unpacks
+/// for the games it runs: the preparer needs a Java and this is the one already on the device.
+fn launcher_java() -> Option<PathBuf> {
+    let files = crate::logging::private_home();
+    let runtime = files.join("app_runtime").join("java");
+    let direct = runtime.join("jre25");
+    if direct.join("bin").join("java").is_file() {
+        return Some(direct);
+    }
+    let mut found: Vec<PathBuf> = std::fs::read_dir(&runtime)
+        .ok()?
+        .filter_map(|entry| entry.ok().map(|e| e.path()))
+        .filter(|path| path.join("bin").join("java").is_file())
+        .collect();
+    found.sort();
+    found.pop()
+}
+
 fn run(resources: &Path) -> Result<(), String> {
     let runtime = starling_account::java::android_runtime(std::env::consts::ARCH)
         .ok_or("No Java runtime is available for this architecture.")?;
@@ -112,18 +130,31 @@ fn run(resources: &Path) -> Result<(), String> {
         return Err("The app's exporter bundle is missing, outdated or damaged. Install the current APK again.".into());
     }
     let jre = home.join("jre25");
-    starling_account::java::install(
-        runtime,
-        &jre,
-        &|done, total| {
-            *shared() = if done >= total {
-                Stage::Unpacking
-            } else {
-                Stage::Java(done, total)
-            };
-        },
-        &|| false,
-    )?;
+    // The launcher's own runtime, when it has one: FCL unpacks a Java 25 into the app's files
+    // for the game it hosts, and making the resources needs the same one. Only when it is not
+    // there does the pinned runtime get fetched (38 MB, for a phone with no launcher of its own).
+    let jre_dir = match launcher_java() {
+        Some(own) => {
+            *shared() = Stage::Unpacking;
+            log::info!("Horizon: the launcher's Java {} is used", own.display());
+            own
+        }
+        None => {
+            starling_account::java::install(
+                runtime,
+                &jre,
+                &|done, total| {
+                    *shared() = if done >= total {
+                        Stage::Unpacking
+                    } else {
+                        Stage::Java(done, total)
+                    };
+                },
+                &|| false,
+            )?;
+            jre
+        }
+    };
     let temp = home.join("tmp");
     std::fs::create_dir_all(&temp).map_err(|e| format!("{}: {e}", temp.display()))?;
     let env = |path: &Path| path.display().to_string();
@@ -131,7 +162,7 @@ fn run(resources: &Path) -> Result<(), String> {
         java: library.join("libstarling_java.so"),
         javac: library.join("libstarling_javac.so"),
         env: vec![
-            ("STARLING_JAVA_HOME".into(), env(&jre)),
+            ("STARLING_JAVA_HOME".into(), env(&jre_dir)),
             // The runtime's libraries need one another by name (libnio.so libnet.so): Android's
             // linker finds them on this path only. Not lib/server, libjvm.so's (loaded by its
             // path): with that on it the launcher runs the runtime's bin/java again, which an
