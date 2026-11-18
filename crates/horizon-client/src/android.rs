@@ -1522,6 +1522,8 @@ fn run(app: Option<AndroidApp>) {
         unsafe { _exit(0) }
     }
     trace("engine: run() entered");
+    // The launcher's log window reads the game's lines from here on (FCL's log page).
+    horizon_client_render::logging::set_launcher_log(launcher_log_line);
     crate::telemetry::mark_start();
     // A launcher's own window, when one was handed over before the loop starts.
     install_external_surface();
@@ -1715,6 +1717,23 @@ pub fn report_failure(message: &str) {
             env.call_method(
                 activity,
                 "onEngineFailure",
+                "(Ljava/lang/String;)V",
+                &[jni::objects::JValue::Object(&text)],
+            )
+            .map(drop)
+        })
+    });
+}
+
+/// The game's log lines for the launcher's log window (FCL's), as a Java game's would go to its
+/// bridge: the launcher's page, and what reads it, see the engine's own messages.
+pub fn launcher_log_line(line: &str) {
+    with_activity(|env, activity| {
+        env.with_local_frame(4, |env| {
+            let text = env.new_string(line)?;
+            env.call_method(
+                activity,
+                "onEngineLog",
                 "(Ljava/lang/String;)V",
                 &[jni::objects::JValue::Object(&text)],
             )

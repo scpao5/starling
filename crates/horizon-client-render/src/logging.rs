@@ -479,6 +479,15 @@ pub fn set_console(console: fn(log::Level, &str)) {
     let _ = CONSOLE.set(console);
 }
 
+/// The launcher's own log view (FCL's), which reads the game's lines as a Java game's are read:
+/// its log window, and the things built on it, know nothing of a file on shared storage.
+static LAUNCHER: std::sync::OnceLock<fn(&str)> = std::sync::OnceLock::new();
+
+/// Sends every line the log file gets to `sink` as well (set before `init`).
+pub fn set_launcher_log(sink: fn(&str)) {
+    let _ = LAUNCHER.set(sink);
+}
+
 fn ours(target: &str) -> bool {
     target.starts_with("horizon")
 }
@@ -582,6 +591,14 @@ impl Logger {
                 }
                 recent.push_back(line.clone());
             }
+        }
+        if let Some(sink) = LAUNCHER.get() {
+            let mut text = String::new();
+            for line in &lines {
+                text.push_str(line);
+                text.push('\n');
+            }
+            sink(&text);
         }
         let msg = Out::Write {
             date: now.date_naive(),
