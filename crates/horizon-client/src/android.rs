@@ -1165,7 +1165,11 @@ fn resources_dir(home: &Path, private: &Path) -> PathBuf {
     if shared.is_dir() {
         return shared;
     }
-    private.join("resources")
+    let local = private.join("resources");
+    if local.is_dir() {
+        return local;
+    }
+    local
 }
 
 fn command_line(home: &Path, private: &Path) -> (Vec<String>, Vec<(String, String)>) {
