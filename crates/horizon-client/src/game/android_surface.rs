@@ -29,6 +29,7 @@ pub(super) struct SurfaceLoop {
 
 impl EventLoopCtl for SurfaceLoop {
     fn exit(&self) {
+        crate::android::trace("loop: exit requested");
         self.exit.set(true);
     }
     fn set_control_flow(&self, flow: ControlFlow) {
