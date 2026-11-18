@@ -1275,7 +1275,7 @@ fn logcat(level: log::Level, message: &str) {
 
 #[link(name = "log")]
 unsafe extern "C" {
-    fn __android_log_write(
+    pub(crate) fn __android_log_write(
         priority: std::ffi::c_int,
         tag: *const std::ffi::c_char,
         text: *const std::ffi::c_char,

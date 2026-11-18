@@ -41,7 +41,7 @@ unsafe fn write_all(fd: c_int, mut bytes: &[u8]) {
 unsafe fn logcat(level: c_int, tag: &[u8], message: &[u8]) {
     unsafe {
         let prio = if level == libc::SIGABRT { 6 } else { 5 };
-        libc::__android_log_write(prio, tag.as_ptr().cast(), message.as_ptr().cast());
+        crate::android::__android_log_write(prio, tag.as_ptr().cast(), message.as_ptr().cast());
     }
 }
 
