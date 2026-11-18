@@ -1538,13 +1538,6 @@ fn run(app: Option<AndroidApp>) {
     trace("engine: run() entered");
     // The launcher's log window reads the game's lines from here on (FCL's log page).
     horizon_client_render::logging::set_launcher_log(launcher_log_line);
-    // A native crash leaves no Java exception behind: the signals are caught so the phone can
-    // be told what happened, before the platform ends the process.
-    crate::native_crash::install(&format!(
-        "Horizon {} on {}",
-        env!("CARGO_PKG_VERSION"),
-        std::env::consts::ARCH
-    ));
     crate::telemetry::mark_start();
     // A launcher's own window, when one was handed over before the loop starts.
     install_external_surface();
@@ -1555,6 +1548,17 @@ fn run(app: Option<AndroidApp>) {
         .or_else(|| app.as_ref().and_then(|a| a.internal_data_path()))
         .unwrap_or_else(|| PathBuf::from("/data/local/tmp/horizon"));
     let _ = std::fs::create_dir_all(&private);
+    // A native crash leaves no Java exception behind: the signals are caught so the phone can be
+    // told what happened, before the platform ends the process. The report goes to the app's own
+    // files (no app may write /data/local/tmp, which belongs to the shell user).
+    crate::native_crash::install(
+        &private,
+        &format!(
+            "Horizon {} on {}",
+            env!("CARGO_PKG_VERSION"),
+            std::env::consts::ARCH
+        ),
+    );
     trace(&format!("engine: private {private:?}"));
     let mut notes = Vec::new();
     let home = game_folder(&private, &mut notes);

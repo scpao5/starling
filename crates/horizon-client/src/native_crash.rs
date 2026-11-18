@@ -15,6 +15,9 @@ use std::sync::atomic::{AtomicI32, Ordering};
 /// writes these bytes.
 static MESSAGE: std::sync::OnceLock<CString> = std::sync::OnceLock::new();
 static MESSAGE_LEN: AtomicI32 = AtomicI32::new(0);
+/// Where the report goes, NUL-terminated. The app's own files directory: no app may write
+/// `/data/local/tmp`, which belongs to the shell user.
+static REPORT_PATH: std::sync::OnceLock<CString> = std::sync::OnceLock::new();
 
 /// The handlers the app installed before us, chained to so the platform still sees the crash
 /// (its tombstone, the system's own report).
@@ -50,11 +53,14 @@ unsafe extern "C" fn handler(signal: c_int, info: *mut libc::siginfo_t, context:
         if let Some(message) = MESSAGE.get() {
             let bytes = message.as_bytes();
             let len = MESSAGE_LEN.load(Ordering::Relaxed).max(0) as usize;
-            if len > 0 && len <= bytes.len() {
+            if len > 0
+                && len <= bytes.len()
+                && let Some(path) = REPORT_PATH.get()
+            {
                 let fd = libc::open(
-                    b"/data/local/tmp/starling_crash.txt\0".as_ptr().cast(),
+                    path.as_ptr(),
                     libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC,
-                    0o666,
+                    0o600,
                 );
                 if fd >= 0 {
                     write_all(fd, &bytes[..len]);
@@ -89,7 +95,15 @@ unsafe extern "C" fn handler(signal: c_int, info: *mut libc::siginfo_t, context:
 
 /// Installs the handlers. `where` names the build (the version, the GPU), which is all a crash
 /// report can be given without asking the dying process.
-pub fn install(description: &str) {
+pub fn install(dir: &std::path::Path, description: &str) {
+    // The report's path is set before the signal can arrive, like the message itself.
+    if let Some(path) = dir
+        .join("engine_crash.txt")
+        .to_str()
+        .and_then(|p| CString::new(p).ok())
+    {
+        let _ = REPORT_PATH.set(path);
+    }
     let mut text = description.to_owned();
     text.push('\n');
     let Ok(message) = CString::new(text) else {
