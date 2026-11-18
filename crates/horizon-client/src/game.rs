@@ -22151,9 +22151,9 @@ fn run_loading(
                         Ok(loaded) => loaded,
                         Err(e) => {
                             crate::android::trace(&format!("loop: failed: {e}"));
-                            crate::android::show_fatal_error(&e.to_string());
-                            loading.error = Some(e.into());
-                            break;
+                            loading.failure = Some(e);
+                            ctl.sleep_a_step();
+                            continue;
                         }
                     };
                     match loading.finish(loaded) {
@@ -22166,10 +22166,12 @@ fn run_loading(
                             break;
                         }
                         Err(e) => {
+                            // As App::about_to_wait does on Android: the setup offers to make
+                            // the resources on the device, so the loop keeps going.
                             crate::android::trace(&format!("loop: failed: {e}"));
-                            crate::android::show_fatal_error(&e.to_string());
-                            loading.error = Some(e);
-                            break;
+                            loading.failure = Some(e.to_string());
+                            ctl.sleep_a_step();
+                            continue;
                         }
                     }
                 }
