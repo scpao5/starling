@@ -84,8 +84,7 @@ pub fn start(resources: PathBuf) {
                 Ok(()) => "the resources were made".to_owned(),
                 Err(e) => format!("FAILED: {e}"),
             };
-            #[cfg(target_os = "android")]
-            crate::android::preparer_line(&detail);
+            write_stage_line(&detail);
             *shared() = match result {
                 Ok(()) => {
                     log::info!(
@@ -124,6 +123,22 @@ fn launcher_java() -> Option<PathBuf> {
         .collect();
     found.sort();
     found.pop()
+}
+
+/// The preparer's outcome, where the launcher reads it: its own files, and the folder a phone's
+/// file manager reaches. A plain file write, so this crate and the lib it is shared with need
+/// no Android module between them.
+fn write_stage_line(line: &str) {
+    let files = crate::logging::private_home();
+    let _ = std::fs::write(files.join("preparer-stage.txt"), line);
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/storage/emulated/0/Starling/.starling-resources.log")
+    {
+        use std::io::Write;
+        let _ = writeln!(file, "{line}");
+    }
 }
 
 fn run(resources: &Path) -> Result<(), String> {
