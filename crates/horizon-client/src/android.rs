@@ -1778,3 +1778,13 @@ pub fn launcher_log_line(line: &str) {
         })
     });
 }
+
+/// The preparer's current line, for the launcher's screens to show: written where Java can read
+/// it, since a String back through JNI would mean the caller building an array for one word.
+pub fn preparer_line(line: &str) {
+    let Some(files) = launcher_files() else {
+        return;
+    };
+    let path = files.join("preparer-stage.txt");
+    let _ = std::fs::write(path, line);
+}

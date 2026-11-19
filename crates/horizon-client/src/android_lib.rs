@@ -465,20 +465,27 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_preparerSta
 ) -> jni::sys::jint {
     use horizon_client::preparer::Stage;
     let stage = horizon_client::preparer::stage();
-    match &stage {
+    // Every change of stage is one line in the preparer's own log, which the launch screen and
+    // the manage page both read: a String back through JNI is more machinery than this needs.
+    let line = match &stage {
+        Stage::Idle => return 0,
+        Stage::Java(done, total) => format!(
+            "Java 运行时 {} / {} MB",
+            done / (1024 * 1024),
+            total / (1024 * 1024)
+        ),
+        Stage::Unpacking => "解包 Java 运行时".to_owned(),
+        Stage::Preparing(line) => line.clone(),
+        Stage::Done => "完成".to_owned(),
+        Stage::Failed(e) => format!("失败：{e}"),
+    };
+    horizon_client::android::preparer_line(&line);
+    match stage {
         Stage::Idle => 0,
         Stage::Java(..) => 1,
         Stage::Unpacking => 2,
-        Stage::Preparing(line) => {
-            horizon_client::android::trace(&format!("preparer: {line}"));
-            3
-        }
+        Stage::Preparing(_) => 3,
         Stage::Done => 4,
-        Stage::Failed(e) => {
-            // The game's own logging is not up yet (the engine has not started): this is the
-            // only place the reason can be read.
-            horizon_client::android::trace(&format!("preparer: FAILED: {e}"));
-            5
-        }
+        Stage::Failed(_) => 5,
     }
 }
