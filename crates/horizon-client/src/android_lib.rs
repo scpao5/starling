@@ -443,6 +443,8 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_prepareReso
     mut env: jni::JNIEnv,
     _class: *mut std::ffi::c_void,
     resources: jni::objects::JString,
+    files: jni::objects::JString,
+    library: jni::objects::JString,
 ) {
     if resources.is_null() {
         return;
@@ -451,6 +453,15 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_prepareReso
         return;
     };
     let path = std::path::PathBuf::from(String::from(path));
+    // The preparation runs before the engine has an Activity of its own: the two paths it
+    // needs (the app's files, and the folder the APK's libraries were unpacked to) come from
+    // the launcher, and no JNI call back into an Activity is made.
+    if let Ok(files) = env.get_string(&files) {
+        horizon_client::android::set_launcher_files(std::path::PathBuf::from(String::from(files)));
+    }
+    if let Ok(library) = env.get_string(&library) {
+        horizon_client::android::set_library_dir(std::path::PathBuf::from(String::from(library)));
+    }
     horizon_client::android::trace(&format!("prepare: asked for {path:?}"));
     horizon_client::preparer::start(path);
 }

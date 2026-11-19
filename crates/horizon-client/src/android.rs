@@ -205,7 +205,24 @@ fn clipboard_get() -> Option<String> {
 
 /// The folder Android extracted the APK's libraries to (ApplicationInfo.nativeLibraryDir), where
 /// the Java launchers are.
+/// The folder the APK's libraries were unpacked to, when the launcher named it: the preparation
+/// runs before any Activity of the engine exists, so it cannot ask one.
+static LAUNCHER_LIBRARY: OnceLock<PathBuf> = OnceLock::new();
+
+/// `StarlingActivity.prepareResources`: where the APK's native libraries are, before a start.
+pub fn set_library_dir(dir: PathBuf) {
+    let _ = LAUNCHER_LIBRARY.set(dir);
+}
+
+/// The launcher's files directory, named by `prepareResources` before any Activity exists.
+pub fn set_launcher_files(dir: PathBuf) {
+    let _ = LAUNCHER_FILES.set(dir);
+}
+
 fn library_dir() -> Option<PathBuf> {
+    if let Some(dir) = LAUNCHER_LIBRARY.get() {
+        return Some(dir.clone());
+    }
     with_activity(|env, activity| {
         let info = env
             .call_method(
