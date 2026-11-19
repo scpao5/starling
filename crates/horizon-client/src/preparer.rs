@@ -270,18 +270,7 @@ fn run(resources: &Path) -> Result<(), String> {
         .ok_or("No Java runtime is available for this architecture.")?;
     let server_jar = crate::accounts::server_jar()
         .ok_or("The game files are not all there: download them again.")?;
-    // The folder the APK's libraries were unpacked to. The launcher names it before the engine
-    // has ever started (`prepareResources`), so platform hooks are not registered yet: the path
-    // it gave is read first, and the platform's hooks only when it did not.
-    let library = crate::android::launcher_library_dir()
-        .or_else(crate::platform::library_dir)
-        .ok_or_else(|| {
-            format!(
-                "Starling cannot find its own files (files={:?}, minecraft={:?})",
-                crate::logging::private_home(),
-                crate::accounts::files_root()
-            )
-        })?;
+    let library = crate::platform::library_dir().ok_or("Starling cannot find its own files.")?;
     let home = home();
     let kit = home.join("kit");
     unpack_kit(&kit)?;
