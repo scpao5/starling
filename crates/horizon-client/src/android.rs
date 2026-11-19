@@ -219,6 +219,11 @@ pub fn set_launcher_files(dir: PathBuf) {
     let _ = LAUNCHER_FILES.set(dir);
 }
 
+/// The library folder the launcher named, before any platform hooks exist.
+pub fn launcher_library_dir() -> Option<PathBuf> {
+    LAUNCHER_LIBRARY.get().cloned()
+}
+
 fn library_dir() -> Option<PathBuf> {
     if let Some(dir) = LAUNCHER_LIBRARY.get() {
         return Some(dir.clone());

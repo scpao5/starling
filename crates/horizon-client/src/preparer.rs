@@ -8,6 +8,29 @@ mod install;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock, PoisonError};
 
+/// Every path the preparation reads and writes, named by the launcher that asked for it: the
+/// launcher knows where its own install, its Java and its jars are, and nothing here has to
+/// guess at a platform hook or an environment variable that is not set before a game starts.
+#[derive(Clone, Debug)]
+pub struct Paths {
+    /// Where the engine reads the resources (`. . ./versions/<id>/resources`).
+    pub output: PathBuf,
+    /// The game's install: `versions/`, `libraries/`, `assets/`.
+    pub minecraft_dir: PathBuf,
+    pub libraries_dir: PathBuf,
+    pub assets_dir: PathBuf,
+    pub version_json: PathBuf,
+    pub client_jar: PathBuf,
+    /// The pinned server jar the preparation exports from.
+    pub server_jar: PathBuf,
+    /// The Java runtime the exporters run on (its `bin/java`, `bin/javac`).
+    pub java_home: PathBuf,
+    /// The unpacked preparation kit: `research-lock.json`, the exporters' sources and classes.
+    pub kit: PathBuf,
+    /// Where the APK's native libraries are (`libstarling_java.so`, `libstarling_javac.so`).
+    pub library_dir: PathBuf,
+}
+
 /// Where the preparing is.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum Stage {
@@ -56,6 +79,107 @@ pub fn running() -> bool {
 /// The runtime, the kit and horizon-prepare's work files: the app's own folder.
 fn home() -> PathBuf {
     crate::logging::private_home().join("preparer")
+}
+
+/// Prepares into `paths.output` with every path named by the launcher: the same work as
+/// [`start`], without asking a platform hook or an account module for any of it, so it runs
+/// before the engine has ever started.
+pub fn start_with(paths: Paths) {
+    {
+        let mut stage = shared();
+        if matches!(
+            *stage,
+            Stage::Java(..) | Stage::Unpacking | Stage::Preparing(_)
+        ) {
+            return;
+        }
+        *stage = Stage::Unpacking;
+    }
+    let spawned = std::thread::Builder::new()
+        .name("preparer".into())
+        .spawn(move || {
+            let started = std::time::Instant::now();
+            let result = run_with(&paths);
+            let detail = match &result {
+                Ok(()) => "the resources were made".to_owned(),
+                Err(e) => format!("FAILED: {e}"),
+            };
+            write_stage_line(&detail);
+            *shared() = match result {
+                Ok(()) => {
+                    log::info!(
+                        "Horizon: the game files were prepared in {} s",
+                        started.elapsed().as_secs()
+                    );
+                    Stage::Done
+                }
+                Err(e) => {
+                    log::warn!("Horizon: the game files were not prepared: {e}");
+                    Stage::Failed(e)
+                }
+            };
+        });
+    if let Err(e) = spawned {
+        *shared() = Stage::Failed(e.to_string());
+    }
+}
+
+/// [`start_with`]'s work, over the paths the launcher named.
+fn run_with(paths: &Paths) -> Result<(), String> {
+    let temp = paths.kit.join("tmp");
+    std::fs::create_dir_all(&temp).map_err(|e| format!("{}: {e}", temp.display()))?;
+    let env = |path: &Path| path.display().to_string();
+    horizon_prepare::java::supply(horizon_prepare::java::Supplied {
+        java: paths.library_dir.join("libstarling_java.so"),
+        javac: paths.library_dir.join("libstarling_javac.so"),
+        env: vec![
+            ("STARLING_JAVA_HOME".into(), env(&paths.java_home)),
+            (
+                "LD_LIBRARY_PATH".into(),
+                format!(
+                    "{}:{}",
+                    env(&paths.java_home.join("lib")),
+                    env(&paths.library_dir)
+                ),
+            ),
+            ("JAVA_HOME".into(), env(&paths.java_home)),
+            ("TMPDIR".into(), env(&temp)),
+            (
+                "JAVA_TOOL_OPTIONS".into(),
+                format!("-Djava.io.tmpdir={}", env(&temp)),
+            ),
+        ],
+    });
+    if let Some(limit) = horizon_prepare::java::max_heap_mib() {
+        log::info!("Horizon: 32-bit preparation Java heap limit: {limit} MiB");
+    }
+    *shared() = Stage::Preparing("正在导入游戏文件".into());
+    let made = horizon_prepare::prepare(
+        &horizon_prepare::Options {
+            root: paths.kit.clone(),
+            import: true,
+            minecraft_dir: Some(paths.minecraft_dir.clone()),
+            server_jar: Some(paths.server_jar.clone()),
+            java_home: Some(paths.java_home.clone()),
+            inputs: horizon_prepare::artifacts::Inputs {
+                version_json: Some(paths.version_json.clone()),
+                client_jar: Some(paths.client_jar.clone()),
+                libraries_dir: Some(paths.libraries_dir.clone()),
+                assets_dir: Some(paths.assets_dir.clone()),
+            },
+            output: Some(paths.output.clone()),
+        },
+        &|line| {
+            *shared() = Stage::Preparing(line.to_owned());
+        },
+    )?;
+    if !made.is_dir() {
+        return Err(format!(
+            "the preparation wrote nothing to {}",
+            made.display()
+        ));
+    }
+    Ok(())
 }
 
 /// Prepare the fetched files into `resources` (the folder the game reads), on a thread of its
@@ -146,13 +270,18 @@ fn run(resources: &Path) -> Result<(), String> {
         .ok_or("No Java runtime is available for this architecture.")?;
     let server_jar = crate::accounts::server_jar()
         .ok_or("The game files are not all there: download them again.")?;
-    let library = crate::platform::library_dir().ok_or_else(|| {
-        format!(
-            "Starling cannot find its own files (files={:?}, minecraft={:?})",
-            crate::logging::private_home(),
-            crate::accounts::files_root()
-        )
-    })?;
+    // The folder the APK's libraries were unpacked to. The launcher names it before the engine
+    // has ever started (`prepareResources`), so platform hooks are not registered yet: the path
+    // it gave is read first, and the platform's hooks only when it did not.
+    let library = crate::android::launcher_library_dir()
+        .or_else(crate::platform::library_dir)
+        .ok_or_else(|| {
+            format!(
+                "Starling cannot find its own files (files={:?}, minecraft={:?})",
+                crate::logging::private_home(),
+                crate::accounts::files_root()
+            )
+        })?;
     let home = home();
     let kit = home.join("kit");
     unpack_kit(&kit)?;

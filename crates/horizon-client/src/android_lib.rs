@@ -442,28 +442,45 @@ extern "system" fn Java_io_github_juanluci_starling_DiagnosticsActivity_makeRepo
 extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_prepareResources(
     mut env: jni::JNIEnv,
     _class: *mut std::ffi::c_void,
-    resources: jni::objects::JString,
-    files: jni::objects::JString,
-    library: jni::objects::JString,
+    // output, minecraft_dir, libraries_dir, assets_dir, version_json, client_jar, server_jar,
+    // java_home, kit, library_dir
+    paths: jni::objects::JObjectArray,
 ) {
-    if resources.is_null() {
+    if paths.is_null() {
         return;
     }
-    let Ok(path) = env.get_string(&resources) else {
+    let count = env.get_array_length(&paths).unwrap_or(0);
+    let mut named: Vec<std::path::PathBuf> = Vec::with_capacity(count as usize);
+    for i in 0..count {
+        let Ok(value) = env.get_object_array_element(&paths, i) else {
+            return;
+        };
+        let Ok(text) = env.get_string(&jni::objects::JString::from(value)) else {
+            return;
+        };
+        named.push(std::path::PathBuf::from(String::from(text)));
+    }
+    if named.len() < 10 {
+        horizon_client::android::trace(&format!(
+            "prepare: {} paths given, 10 expected",
+            named.len()
+        ));
         return;
+    }
+    let paths = horizon_client::preparer::Paths {
+        output: named[0].clone(),
+        minecraft_dir: named[1].clone(),
+        libraries_dir: named[2].clone(),
+        assets_dir: named[3].clone(),
+        version_json: named[4].clone(),
+        client_jar: named[5].clone(),
+        server_jar: named[6].clone(),
+        java_home: named[7].clone(),
+        kit: named[8].clone(),
+        library_dir: named[9].clone(),
     };
-    let path = std::path::PathBuf::from(String::from(path));
-    // The preparation runs before the engine has an Activity of its own: the two paths it
-    // needs (the app's files, and the folder the APK's libraries were unpacked to) come from
-    // the launcher, and no JNI call back into an Activity is made.
-    if let Ok(files) = env.get_string(&files) {
-        horizon_client::android::set_launcher_files(std::path::PathBuf::from(String::from(files)));
-    }
-    if let Ok(library) = env.get_string(&library) {
-        horizon_client::android::set_library_dir(std::path::PathBuf::from(String::from(library)));
-    }
-    horizon_client::android::trace(&format!("prepare: asked for {path:?}"));
-    horizon_client::preparer::start(path);
+    horizon_client::android::trace(&format!("prepare: asked for {:?}", paths.output));
+    horizon_client::preparer::start_with(paths);
 }
 
 /// `StarlingActivity.preparerStage`: 0 idle, 1 fetching Java, 2 unpacking it, 3 preparing,
