@@ -146,7 +146,13 @@ fn run(resources: &Path) -> Result<(), String> {
         .ok_or("No Java runtime is available for this architecture.")?;
     let server_jar = crate::accounts::server_jar()
         .ok_or("The game files are not all there: download them again.")?;
-    let library = crate::platform::library_dir().ok_or("Starling cannot find its own files.")?;
+    let library = crate::platform::library_dir().ok_or_else(|| {
+        format!(
+            "Starling cannot find its own files (files={:?}, minecraft={:?})",
+            crate::logging::private_home(),
+            crate::accounts::files_root()
+        )
+    })?;
     let home = home();
     let kit = home.join("kit");
     unpack_kit(&kit)?;
@@ -157,7 +163,14 @@ fn run(resources: &Path) -> Result<(), String> {
     // The launcher's own runtime, when it has one: FCL unpacks a Java 25 into the app's files
     // for the game it hosts, and making the resources needs the same one. Only when it is not
     // there does the pinned runtime get fetched (38 MB, for a phone with no launcher of its own).
-    let jre_dir = match launcher_java() {
+    let found_java = launcher_java();
+    if found_java.is_none() {
+        write_stage_line(&format!(
+            "no launcher Java under {:?}",
+            crate::logging::private_home().parent()
+        ));
+    }
+    let jre_dir = match found_java {
         Some(own) => {
             *shared() = Stage::Unpacking;
             log::info!("Horizon: the launcher's Java {} is used", own.display());
