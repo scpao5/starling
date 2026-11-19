@@ -102,8 +102,11 @@ pub fn start(resources: PathBuf) {
 /// The launcher's own Java 25 (`app_runtime/java/jre25` in the app's files), the one FCL unpacks
 /// for the games it runs: the preparer needs a Java and this is the one already on the device.
 fn launcher_java() -> Option<PathBuf> {
+    // FCL unpacks its runtimes beside `files/`, not inside it: the app's own data folder, one
+    // level up from HORIZON_PRIVATE.
     let files = crate::logging::private_home();
-    let runtime = files.join("app_runtime").join("java");
+    let base = files.parent().map(Path::to_path_buf).unwrap_or(files);
+    let runtime = base.join("app_runtime").join("java");
     let direct = runtime.join("jre25");
     if direct.join("bin").join("java").is_file() {
         return Some(direct);
