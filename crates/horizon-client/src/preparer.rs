@@ -80,6 +80,11 @@ pub fn start(resources: PathBuf) {
         .spawn(move || {
             let started = std::time::Instant::now();
             let result = run(&resources);
+            let detail = match &result {
+                Ok(()) => "the resources were made".to_owned(),
+                Err(e) => format!("FAILED: {e}"),
+            };
+            crate::android::preparer_line(&detail);
             *shared() = match result {
                 Ok(()) => {
                     log::info!(

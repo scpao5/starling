@@ -1785,6 +1785,15 @@ pub fn preparer_line(line: &str) {
     let Some(files) = launcher_files() else {
         return;
     };
-    let path = files.join("preparer-stage.txt");
-    let _ = std::fs::write(path, line);
+    let _ = std::fs::write(files.join("preparer-stage.txt"), line);
+    // And beside the launcher's own launch log, which is read from a phone with no logcat.
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/storage/emulated/0/Starling/.starling-resources.log")
+    {
+        use std::io::Write;
+        let _ = writeln!(file, "{line}");
+    }
+    trace(&format!("preparer: {line}"));
 }
