@@ -84,6 +84,7 @@ pub fn start(resources: PathBuf) {
                 Ok(()) => "the resources were made".to_owned(),
                 Err(e) => format!("FAILED: {e}"),
             };
+            #[cfg(target_os = "android")]
             crate::android::preparer_line(&detail);
             *shared() = match result {
                 Ok(()) => {
