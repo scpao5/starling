@@ -17220,9 +17220,9 @@ impl Game<'_> {
         // carry `WindowId::dummy()`.
         let ours = match &self.window {
             Some(w) => w.id() == id,
-            // No window: the frame comes from the launcher's surface (Android) or the headless
-            // loop, and either way there is one thing to compare.
-            None => self.options.headless || cfg!(target_os = "android"),
+            // No window at all: the frame comes from the launcher's own surface or from the
+            // headless loop, and either way there is no second window to tell it apart from.
+            None => true,
         };
         if !ours {
             return;
