@@ -651,6 +651,7 @@ impl Options {
             creative: false,
             test_terrain: false,
             frames: None,
+            graphics_backend: None,
             paced_by_split: false,
             split_guest: false,
             split_in_main_window: false,
@@ -698,19 +699,6 @@ impl Options {
                     println!("{}", launch_api::reply(&horizon_client::crash::version()));
                     return Ok(None);
                 }
-                "--graphics-backend" => {
-                    let value = next_value(args, "--graphics-backend")?;
-                    o.graphics_backend = Some(match value.as_str() {
-                        "opengl" => horizon_client_render::graphics::GraphicsApi::OpenGl,
-                        "vulkan" => horizon_client_render::graphics::GraphicsApi::Vulkan,
-                        "default" | "auto" => horizon_client_render::graphics::GraphicsApi::Auto,
-                        other => {
-                            return Err(format!(
-                                "--graphics-backend takes default, opengl or vulkan, not {other}"
-                            ));
-                        }
-                    });
-                }
                 "--fullscreen" => o.fullscreen = true,
                 "--session-stdin" => o.session_stdin = true,
                 "--dedicated" => {
@@ -743,6 +731,26 @@ impl Options {
                     let read = || -> Result<()> {
                         match arg.as_str() {
                             "--resources" => o.resources = value.into(),
+                            "--graphics-backend" => {
+                                o.graphics_backend = Some(match value.as_str() {
+                                    "opengl" => {
+                                        horizon_client_render::graphics::GraphicsApi::OpenGl
+                                    }
+                                    "vulkan" => {
+                                        horizon_client_render::graphics::GraphicsApi::Vulkan
+                                    }
+                                    "default" | "auto" => {
+                                        horizon_client_render::graphics::GraphicsApi::Auto
+                                    }
+                                    other => {
+                                        return Err(format!(
+                                            "--graphics-backend takes default, opengl or vulkan, \
+                                             not {other}"
+                                        )
+                                        .into());
+                                    }
+                                });
+                            }
                             "--render-distance" | "--radius" => {
                                 o.distance = value.parse()?;
                                 o.distance_override = Some(o.distance);
