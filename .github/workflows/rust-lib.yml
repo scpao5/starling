@@ -61,6 +61,21 @@ jobs:
           mkdir -p "$RUNNER_TEMP/lib/$ABI"
           cp target/android/*.so "$RUNNER_TEMP/lib/$ABI/"
           ls -lh "$RUNNER_TEMP/lib/$ABI/"
+      # The preparation as its own program: a phone cannot exec one out of its own files, but it
+      # can out of the folder the APK's libraries go to, and the preparation is heavy enough to
+      # want its own process (the launcher's stays free to draw the progress).
+      - name: Build the preparation
+        env:
+          ABI: ${{ matrix.abi }}
+        run: |
+          cargo ndk --target "$ABI" --platform 24 build --release \
+            --package horizon-prepare --bin horizon-prepare
+          out="$RUNNER_TEMP/lib/$ABI/libhorizon_prepare.so"
+          built=$(find target -type f -name horizon-prepare -perm -u+x | head -1)
+          test -n "$built"
+          cp "$built" "$out"
+          chmod 755 "$out"
+          ls -lh "$out"
       - uses: actions/upload-artifact@v4
         with:
           name: starling-rust-lib-${{ matrix.abi }}
