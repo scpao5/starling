@@ -292,7 +292,10 @@ impl Default for Settings {
             improved_transparency: false,
             attack_indicator: 1,
             inactivity_fps_limit: "afk".into(),
-            bedrock_inventory: true,
+            // Off, as vanilla draws it: the port's own layout shares its click area with the
+            // item grid, and a click that lands in it takes the stack into a crafting slot the
+            // screen then closes over. A player can still turn it on in the options.
+            bedrock_inventory: false,
             prioritize_chunk_updates: 0,
             menu_blur: 5,
             invert_y: false,
@@ -509,8 +512,9 @@ impl Settings {
             improved_transparency: f.bool("improvedTransparency"),
             attack_indicator: f.int("attackIndicator") as u8,
             inactivity_fps_limit: f.name("inactivityFpsLimit"),
-            // Saved by what turns it off, so a file from before it has it on.
-            bedrock_inventory: !f.bool("javaCreativeInventory"),
+            // Off unless the file names it: `bedrockInventory` is what the options save, and a
+            // file that predates the option gets vanilla's layout.
+            bedrock_inventory: f.bool("bedrockInventory"),
             prioritize_chunk_updates: f.int("prioritizeChunkUpdates") as u8,
             menu_blur: f.int("menuBackgroundBlurriness"),
             invert_x: f.bool("invertXMouse"),
@@ -616,7 +620,7 @@ impl Settings {
         put_b(&mut f, "improvedTransparency", self.improved_transparency);
         put_i(&mut f, "attackIndicator", i32::from(self.attack_indicator));
         put_name(&mut f, "inactivityFpsLimit", &self.inactivity_fps_limit);
-        put_b(&mut f, "javaCreativeInventory", !self.bedrock_inventory);
+        put_b(&mut f, "bedrockInventory", self.bedrock_inventory);
         put_i(
             &mut f,
             "prioritizeChunkUpdates",
