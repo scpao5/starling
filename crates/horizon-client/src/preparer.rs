@@ -179,6 +179,13 @@ fn run_with(paths: &Paths) -> Result<(), String> {
             made.display()
         ));
     }
+    // The sounds come from the game's own assets, and the preparation does not carry them: the
+    // game reads them from the prepared folder, so they are added here, from the same install.
+    *shared() = Stage::Preparing("复制音效".into());
+    horizon_prepare::sounds(&paths.kit, Some(&paths.minecraft_dir), &|line| {
+        *shared() = Stage::Preparing(line.to_owned());
+    })
+    .map_err(|e| format!("the sounds were not added: {e}"))?;
     Ok(())
 }
 
