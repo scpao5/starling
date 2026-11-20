@@ -21269,7 +21269,9 @@ impl Loading {
         // is what keeps that frame from asking for a table that is not there yet.
         // Only once the loading step has produced the resources themselves: before that the
         // fields the first frame reads are not there.
-        matches!(self.loaded, Some(Ok(_)))
+        // And only once the world's own tables are joined: they load beside the core ones, and
+        // the frame after the menu reads an item's, a recipe's, a mob's.
+        matches!(self.loaded, Some(Ok(loaded)) if loaded.resources.rest_ready())
             && (self.title_drawn
                 || self.menu.pending.is_some()
                 || self.ui_at.is_none_or(|at| at.elapsed() >= TITLE_FRAME_WAIT))
