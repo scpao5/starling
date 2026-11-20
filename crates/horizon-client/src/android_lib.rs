@@ -455,7 +455,8 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_prepareReso
         let Ok(value) = env.get_object_array_element(&paths, i) else {
             return;
         };
-        let Ok(text) = env.get_string(&jni::objects::JString::from(value)) else {
+        let element = jni::objects::JString::from(value);
+        let Ok(text) = env.get_string(&element) else {
             return;
         };
         named.push(std::path::PathBuf::from(String::from(text)));
