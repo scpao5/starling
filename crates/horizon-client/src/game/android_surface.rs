@@ -17,9 +17,20 @@ use std::{
 };
 use winit::event_loop::ControlFlow;
 
-/// Time between frames. The client ticks at 20 Hz whatever the frame rate (a frame runs the
-/// ticks its elapsed time owes), so a frame per tick does all the work there is.
+/// Time between frames when the game asks for none. The client ticks at 20 Hz whatever the
+/// frame rate (a frame runs the ticks its elapsed time owes), so a frame per tick does all the
+/// work there is: a paused game needs no more than that.
 const FRAME: Duration = Duration::from_millis(17);
+
+/// The pause after a step whose frame cap came from the settings: 260 and up is no cap, and then
+/// the swapchain's own wait (`Mailbox`) is the only limiter, as a window's present is.
+fn frame_for(limit: i32) -> Duration {
+    match limit {
+        260.. => Duration::ZERO,
+        ..=0 => FRAME,
+        _ => Duration::from_secs_f64(1.0 / f64::from(limit)),
+    }
+}
 
 /// The loop's side of `EventLoopCtl`: what the game asked for during a step.
 pub(super) struct SurfaceLoop {
@@ -88,10 +99,15 @@ impl Game<'_> {
             if steps == 1 || steps == 120 {
                 crate::android::trace(&format!("loop: step {steps}"));
             }
-            if let Some(wait) = ctl
-                .next_step(started)
-                .checked_duration_since(Instant::now())
-            {
+            // The step's pause is the frame cap the settings name, not a frame of its own: a
+            // phone that draws faster than 60 needs no sleeping to hold it there.
+            let asked = match ctl.flow.get() {
+                ControlFlow::WaitUntil(at) => at,
+                ControlFlow::Poll | ControlFlow::Wait => {
+                    started + frame_for(self.framerate_limit())
+                }
+            };
+            if let Some(wait) = asked.checked_duration_since(Instant::now()) {
                 std::thread::sleep(wait);
             }
         }

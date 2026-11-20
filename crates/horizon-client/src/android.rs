@@ -819,6 +819,10 @@ mod input {
 
     /// The keys a launcher's on-screen controls pressed, waiting for the game's next iteration.
     static KEYS: Mutex<Vec<KeyPress>> = Mutex::new(Vec::new());
+
+    /// The characters a launcher's keyboard typed, which its key events do not carry: a field
+    /// with the focus takes them, as GLFW's char callback feeds `charTyped`.
+    static TYPED: Mutex<Vec<char>> = Mutex::new(Vec::new());
     /// The most key presses kept for a game that is not reading them.
     const KEY_QUEUE: usize = 64;
 
@@ -981,11 +985,28 @@ mod input {
             keys.push(KeyPress { name, down, text });
         }
     }
+
+    /// One character typed on the launcher's own keyboard, for the field that has the focus.
+    pub fn push_char(text: char) {
+        if text.is_control() {
+            return;
+        }
+        let mut typed = TYPED.lock().unwrap_or_else(|e| e.into_inner());
+        if typed.len() < KEY_QUEUE {
+            typed.push(text);
+        }
+    }
+
+    /// The characters typed since the last frame, in order.
+    pub fn take_chars() -> Vec<char> {
+        let mut typed = TYPED.lock().unwrap_or_else(|e| e.into_inner());
+        std::mem::take(&mut *typed)
+    }
 }
 
 pub use input::{
-    KeyPress, MouseEvent, keyboard_used, pad_state, push_key, push_mouse, take_keys,
-    take_mouse_events,
+    KeyPress, MouseEvent, keyboard_used, pad_state, push_char, push_key, push_mouse, take_chars,
+    take_keys, take_mouse_events,
 };
 
 /// Android took the captured pointer back while the game held it (StarlingActivity).

@@ -321,6 +321,14 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_sendKey(
         return;
     };
     let name = String::from(name);
+    // An empty name is a character with no key of its own: what a launcher's keyboard types,
+    // which the game takes through the same path GLFW's char callback feeds.
+    if name.is_empty() {
+        if let Some(text) = char::from_u32(text as u32) {
+            horizon_client::android::push_char(text);
+        }
+        return;
+    }
     // The queue keeps &'static str, and the set is fixed, so a known name is looked up once.
     let Some(name) = key_code_name(&name) else {
         return;

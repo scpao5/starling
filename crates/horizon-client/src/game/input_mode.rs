@@ -75,6 +75,18 @@ impl Game<'_> {
             }
         }
 
+        // What the launcher's keyboard typed: a field with the focus takes it, as a window's
+        // char callback feeds GLFW's charTyped.
+        let typed = crate::android::take_chars();
+        if !typed.is_empty() {
+            let text: String = typed.into_iter().collect();
+            if self.types_text() {
+                if let Err(e) = self.type_chars_into_screen(&text) {
+                    log::warn!("a launcher's typed text: {e}");
+                }
+            }
+        }
+
         let events = crate::android::take_mouse_events();
         if events.is_empty() {
             // A key came and went with no mouse event beside it: the keys were handled above,
