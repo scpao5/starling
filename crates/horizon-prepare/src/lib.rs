@@ -23,9 +23,9 @@ mod sounds;
 mod survival;
 mod worker;
 
-pub use check::{check, missing_extras, STAMP};
+pub use check::{STAMP, check, missing_extras};
 pub use files::clone_or_copy;
-pub use sounds::{add_assets, fonts, languages, packs, panorama, sounds, BUILT_IN_PACKS};
+pub use sounds::{BUILT_IN_PACKS, add_assets, fonts, languages, packs, panorama, sounds};
 
 use pyjson::Value;
 use sha2::Digest;
@@ -202,13 +202,17 @@ fn wait_preparation_lock(file: &fs::File) -> std::io::Result<()> {
 // Use the kernel lock instead of silently preparing without mutual exclusion.
 #[cfg(target_os = "android")]
 fn try_preparation_lock(file: &fs::File) -> Result<(), fs::TryLockError> {
-    preparation_flock(file, rustix::fs::FlockOperation::NonBlockingLockExclusive).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::WouldBlock {
-            fs::TryLockError::WouldBlock
-        } else {
-            fs::TryLockError::Error(error)
+    match preparation_flock(file, rustix::fs::FlockOperation::NonBlockingLockExclusive) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+            Err(fs::TryLockError::WouldBlock)
         }
-    })
+        // Shared storage (FAT, exFAT, and the FUSE layer a phone mounts them through) has no
+        // file locks at all: a preparation there runs without one, rather than not at all. The
+        // lock only keeps two preparations from writing into one folder at once.
+        Err(error) if error.raw_os_error() == Some(38) => Ok(()),
+        Err(error) => Err(fs::TryLockError::Error(error)),
+    }
 }
 
 #[cfg(target_os = "android")]
@@ -1735,10 +1739,12 @@ mod tests {
                 read(&reports.join(name)).unwrap()
             );
         }
-        assert!(read_json(&root.join("items.json"))
-            .unwrap()
-            .get("minecraft:stone")
-            .is_some());
+        assert!(
+            read_json(&root.join("items.json"))
+                .unwrap()
+                .get("minecraft:stone")
+                .is_some()
+        );
         assert!(root.join("biome-parameters/overworld.json").is_file());
         for name in ["registries.json", "commands.json", "items.json"] {
             fs::remove_file(root.join(name)).unwrap();
