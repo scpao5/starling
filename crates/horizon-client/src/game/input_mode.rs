@@ -61,13 +61,16 @@ impl Game<'_> {
             self.input_used(InputMode::KeyboardMouse);
             for key in keys {
                 let code = key_code(key.name);
+                // The mapping, not the bare press: `mapped_key` holds the key in `self.keys`,
+                // which is what the game reads every tick. A press alone opens a screen (T) and
+                // then goes no further, which is why a held W never walked.
                 if key.down {
                     self.physical_keys.insert(code);
-                    if let Err(e) = self.key_pressed(code) {
-                        log::warn!("a launcher key {code:?}: {e}");
-                    }
                 } else {
                     self.physical_keys.remove(&code);
+                }
+                if let Err(e) = self.mapped_key(code, key.down, false) {
+                    log::warn!("a launcher key {code:?}: {e}");
                 }
             }
         }
