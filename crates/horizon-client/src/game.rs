@@ -21264,9 +21264,15 @@ impl Loading {
     /// the title is on the screen holds the title back by that build. Wait for
     /// one title frame first, unless a world is waiting to open.
     fn ready_for_handoff(&self) -> bool {
-        self.title_drawn
-            || self.menu.pending.is_some()
-            || self.ui_at.is_none_or(|at| at.elapsed() >= TITLE_FRAME_WAIT)
+        // The menu draws before the world's resources are joined: an item's name, a recipe, a
+        // mob's table all come from them, and the first frame reads several. Waiting for them
+        // is what keeps that frame from asking for a table that is not there yet.
+        // Only once the loading step has produced the resources themselves: before that the
+        // fields the first frame reads are not there.
+        matches!(self.loaded, Some(Ok(_)))
+            && (self.title_drawn
+                || self.menu.pending.is_some()
+                || self.ui_at.is_none_or(|at| at.elapsed() >= TITLE_FRAME_WAIT))
     }
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(target_os = "android")]

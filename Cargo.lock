@@ -1407,6 +1407,7 @@ dependencies = [
  "horizon-threads",
  "horizon-world",
  "jni 0.21.1",
+ "libc",
  "log",
  "miniz_oxide 0.8.9",
  "naga",
