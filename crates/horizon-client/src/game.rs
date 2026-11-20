@@ -488,6 +488,9 @@ struct Options {
     creative: bool,
     test_terrain: bool,
     frames: Option<u64>,
+    /// The backend the launcher chose, over whatever `options.txt` says: the launcher knows its
+    /// own setting but not where the game's folder is, so it says this instead of editing a file.
+    graphics_backend: Option<horizon_client_render::graphics::GraphicsApi>,
     /// A splitscreen player: the split window paces every player's frames, not each its own.
     paced_by_split: bool,
     /// A splitscreen player other than P1: its windows are the split's (P1 alone decides
@@ -694,6 +697,19 @@ impl Options {
                 "--launch-api" => {
                     println!("{}", launch_api::reply(&horizon_client::crash::version()));
                     return Ok(None);
+                }
+                "--graphics-backend" => {
+                    let value = next_value(args, "--graphics-backend")?;
+                    o.graphics_backend = Some(match value.as_str() {
+                        "opengl" => horizon_client_render::graphics::GraphicsApi::OpenGl,
+                        "vulkan" => horizon_client_render::graphics::GraphicsApi::Vulkan,
+                        "default" | "auto" => horizon_client_render::graphics::GraphicsApi::Auto,
+                        other => {
+                            return Err(format!(
+                                "--graphics-backend takes default, opengl or vulkan, not {other}"
+                            ));
+                        }
+                    });
                 }
                 "--fullscreen" => o.fullscreen = true,
                 "--session-stdin" => o.session_stdin = true,
@@ -20988,6 +21004,12 @@ fn start_game<'a>(
     };
     if let Some(d) = options.distance_override {
         settings.render_distance = d;
+    }
+    // The launcher's choice, over the file's: `options.txt` is the game's own, and a launcher
+    // has no business editing a file whose folder it does not know.
+    if let Some(api) = options.graphics_backend {
+        settings.horizon.api = api;
+        settings.startup_api = api;
     }
     let mut game = Game::new(res, pack, gui, options, settings, audio, prepared)?;
     game.rest_loader = rest_loader;

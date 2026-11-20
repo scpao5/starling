@@ -61,6 +61,13 @@ pub const OPTIONS: &[LaunchOption] = &[
         "Opens the window fullscreen, whatever `options.txt` says; `options.txt` is not changed.",
     ),
     option(
+        "--graphics-backend",
+        Some("default|opengl|vulkan"),
+        "The rendering backend to start with, whatever `options.txt` says; the file is not \
+         changed, so a launcher's own setting reaches the game without the launcher having to \
+         know where its game folder is.",
+    ),
+    option(
         "--session-file",
         Some("PATH"),
         "The signed-in account, as the session JSON below. Read once, then deleted.",
