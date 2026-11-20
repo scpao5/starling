@@ -68,6 +68,9 @@ jobs:
         env:
           ABI: ${{ matrix.abi }}
         run: |
+          # The same page size the library is linked with: a phone with 16 KiB pages refuses a
+          # library whose LOAD segments are aligned for 4 KiB ones, and the launcher names it.
+          export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-Wl,-z,max-page-size=16384"
           cargo ndk --target "$ABI" --platform 24 build --release \
             --package horizon-prepare --bin horizon-prepare
           out="$RUNNER_TEMP/lib/$ABI/libhorizon_prepare.so"
