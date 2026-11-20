@@ -5,13 +5,12 @@
 //! (tools/test_rust_parity.py's `verify_artifacts`).
 
 use crate::pyjson::{self, Value};
-use crate::{digest, read_json, relative_display, write_json, Log};
+use crate::{Log, digest, read_json, relative_display, write_json};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
-const LAUNCHER_HINT: &str =
-    "Horizon does not download the game: play {version} once in the launcher you play \
+const LAUNCHER_HINT: &str = "Horizon does not download the game: play {version} once in the launcher you play \
 Minecraft Java Edition with so it downloads the game's files, then rerun. Horizon reads the \
 official launcher's folder, ATLauncher's and the CurseForge app's; for Prism Launcher, MultiMC, \
 the Modrinth App or GDLauncher, prepare from the Horizon launcher, which finds their files. If your launcher keeps \
@@ -483,6 +482,12 @@ fn native_library_matches(library: &Value, names: &[&str]) -> bool {
     let arm = rule_architectures().contains(&"arm64");
     let name = library.get("name").and_then(Value::as_str).unwrap_or("");
     let classifier = name.split(':').nth(3).unwrap_or("");
+    // A phone is not a Linux desktop: its launcher carries no `natives-linux` jar (nor the
+    // desktop's other platforms'), and the exporters never load one. They read the jars' classes
+    // only, so these are not the files a preparation needs.
+    if cfg!(target_os = "android") && classifier.starts_with("natives-") {
+        return false;
+    }
     if classifier_ends_with(classifier, &["arm64", "aarch64", "aarch_64"]) {
         return arm;
     }
@@ -1336,9 +1341,14 @@ mod tests {
         let netty = |arch: &str| {
             library(
                 &format!("io.netty:netty-transport-native-kqueue:1:osx-{arch}"),
-                &format!("io/netty/netty-transport-native-kqueue/1/netty-transport-native-kqueue-1-osx-{arch}.jar"),
+                &format!(
+                    "io/netty/netty-transport-native-kqueue/1/netty-transport-native-kqueue-1-osx-{arch}.jar"
+                ),
                 &sha1(b"kqueue"),
-                &format!(r#","rules":[{{"action":"allow","os":{{"name":"{}"}}}}]"#, rule_system()),
+                &format!(
+                    r#","rules":[{{"action":"allow","os":{{"name":"{}"}}}}]"#,
+                    rule_system()
+                ),
             )
         };
         let client_sha1 = digest(&old.join("jars/client.jar"), "sha1").unwrap();
@@ -1479,17 +1489,21 @@ mod tests {
             "libraries/net/minecraft/client/9.9/client-9.9.jar",
             b"other",
         );
-        assert!(prepare(&atlauncher)
-            .unwrap_err()
-            .contains("is not the pinned file"));
+        assert!(
+            prepare(&atlauncher)
+                .unwrap_err()
+                .contains("is not the pinned file")
+        );
         put("libraries/net/minecraft/client/9.9/client-9.9.jar", &client);
         put(
             "configs/json/minecraft/9.9.json",
             manifest.replace(',', ", ").as_bytes(),
         );
-        assert!(prepare(&atlauncher)
-            .unwrap_err()
-            .contains("may have rewritten it"));
+        assert!(
+            prepare(&atlauncher)
+                .unwrap_err()
+                .contains("may have rewritten it")
+        );
     }
 
     /// A launcher with a layout of its own names each file (`--version-json`, `--client-jar`,
@@ -1545,13 +1559,17 @@ mod tests {
             1
         );
         // Without them the empty folder has nothing; a wrong jar fails its pin.
-        assert!(prepare(&Inputs::default())
-            .unwrap_err()
-            .starts_with("Missing "));
+        assert!(
+            prepare(&Inputs::default())
+                .unwrap_err()
+                .starts_with("Missing ")
+        );
         put("instance/minecraft.jar", b"other");
-        assert!(prepare(&inputs)
-            .unwrap_err()
-            .contains("is not the pinned file"));
+        assert!(
+            prepare(&inputs)
+                .unwrap_err()
+                .contains("is not the pinned file")
+        );
     }
 
     /// With no launcher's files in the chosen folder, the error names where Horizon looked and
