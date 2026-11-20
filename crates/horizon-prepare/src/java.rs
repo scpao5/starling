@@ -438,6 +438,16 @@ impl Jdk {
         }
         command
             .args(BATCH_OPTIONS.map(|option| format!("-J{option}")))
+            // As `java`: a ceiling, so the compiler cannot grow until the phone pages.
+            .args(if cfg!(target_os = "android") {
+                if SMALL_ANDROID {
+                    vec!["-J-Xmx512M".to_owned()]
+                } else {
+                    vec!["-J-Xmx1024M".to_owned()]
+                }
+            } else {
+                Vec::new()
+            })
             .args(["--release", &major.to_string(), "-proc:none"])
             .args(args);
         run(command, log)
@@ -446,9 +456,15 @@ impl Jdk {
     pub fn java(&self, args: &[String], cwd: Option<&Path>, log: &fs::File) -> Result<(), String> {
         let mut command = command(&self.java);
         command.args(BATCH_OPTIONS);
-        // The vanilla data generator has no explicit heap argument either.
-        if SMALL_ANDROID && !args.iter().any(|arg| arg.starts_with("-Xmx")) {
-            command.arg(heap_arg("512M"));
+        // The vanilla data generator has no explicit heap argument either. A phone runs several
+        // of these JVMs beside Android itself: without a ceiling one of them grows until the
+        // system pages the whole machine, which costs far more time than the ceiling does.
+        if cfg!(target_os = "android") && !args.iter().any(|arg| arg.starts_with("-Xmx")) {
+            command.arg(if SMALL_ANDROID {
+                "-Xmx512M"
+            } else {
+                "-Xmx1024M"
+            });
         }
         command.args(args.iter().map(|arg| {
             arg.strip_prefix("-Xmx")
