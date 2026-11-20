@@ -108,10 +108,21 @@ fn cjk_face() -> Option<&'static FontRef<'static>> {
             continue;
         };
         let leaked: &'static [u8] = Box::leak(data.into_boxed_slice());
-        // A `.ttc` is a collection; ab_glyph reads the first face of one.
-        if let Ok(face) = FontRef::try_from_slice(leaked) {
-            log::info!("Horizon: {path} draws the CJK glyphs the bundled fonts lack");
-            return Some(Box::leak(Box::new(face)));
+        // A `.ttc` is a collection of faces, and the first one is not necessarily the one a
+        // Chinese player reads: Noto Sans CJK's first face is the Japanese one, whose glyph set
+        // lacks many simplified characters. Each face is tried in turn, and the first that draws
+        // a Chinese character is taken; a plain `.otf`/`.ttf` is its own face 0.
+        for index in 0..8 {
+            let Ok(face) = FontRef::try_from_slice_and_index(leaked, index) else {
+                // Past the collection's last face.
+                break;
+            };
+            if face.glyph_id('中').0 != 0 {
+                log::info!(
+                    "Horizon: {path} face {index} draws the CJK glyphs the bundled fonts lack"
+                );
+                return Some(Box::leak(Box::new(face)));
+            }
         }
     }
     None
