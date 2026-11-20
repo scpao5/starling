@@ -12,8 +12,9 @@ name: android
 # installed beside the release and signed with the repository's own test key in STARLING_DEBUG_KEYSTORE_BASE64 (alias
 # horizon-debug, password android); a tag elsewhere publishes nothing.
 on:
+  # A branch push here builds only the library the launcher carries (rust-lib); the APKs stay for
+  # tags, pull requests, and whoever asks for one by hand.
   push:
-    branches: [android, starling, integration]
     tags: ['v*']
   pull_request:
     types: [opened, synchronize, reopened]

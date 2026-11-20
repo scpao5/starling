@@ -4,9 +4,8 @@ name: checks
 # seconds). Horizon's vanilla parity jobs need a runner holding a copy of the game and stay upstream; the Android APK
 # is built by android.yml.
 on:
-  push:
-    # starling and integration in starling-client/starling (android: Horizon Android's, and JuanLuci/starling's).
-    branches: [android, starling, integration]
+  # A push here runs only rust-lib, which builds the library the launcher carries: this workflow
+  # stays for pull requests and for whoever asks for it by hand.
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
