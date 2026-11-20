@@ -901,7 +901,12 @@ mod tests {
             lines.borrow_mut().push(line.to_string())
         });
         assert_eq!(lines.borrow().len(), 4);
-        assert!(lines.borrow().iter().all(|line| line.contains("assets ready")));
+        assert!(
+            lines
+                .borrow()
+                .iter()
+                .all(|line| line.contains("assets ready"))
+        );
         assets
             .copy(is_sound, "Sound", &["minecraft/sounds.json"], &|_| {})
             .unwrap();
