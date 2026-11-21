@@ -7841,7 +7841,11 @@ impl Game<'_> {
         // deletes, and neither has a character a launcher's keyboard could carry instead.
         // control_key_down is where those screens are answered (chat, the command block, the
         // sign editor), so a launcher's key reaches them the same way a window's does.
-        if !gameplay_has_keyboard(self.screen, self.title.is_some(), self.dialog_open()) {
+        // Escape is not one of them: opening the pause menu and leaving a screen are key_pressed's,
+        // and sending it to control_key_down too would lose both.
+        if key != KeyCode::Escape
+            && !gameplay_has_keyboard(self.screen, self.title.is_some(), self.dialog_open())
+        {
             return self.control_key_down(key);
         }
         self.key_pressed(key)
