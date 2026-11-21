@@ -7772,6 +7772,27 @@ impl Game<'_> {
         if self.mobile_holds_key(key, pressed) {
             return Ok(());
         }
+        // F3 acts on its release, through its own handler: KeyboardHandler sees it, and a
+        // launcher's on-screen F3 has to reach the same place or the debug screen never opens.
+        if key == KeyCode::F3 {
+            use horizon_client::debug_keys::KeyAction;
+            let action = match (pressed, repeat) {
+                (false, _) => KeyAction::Release,
+                (_, false) => KeyAction::Press,
+                (_, true) => KeyAction::Repeat,
+            };
+            // Held, like the mobile controls hold it, so a debug combination sees F3 down.
+            if pressed {
+                self.physical_keys.insert(key);
+            } else {
+                self.physical_keys.remove(&key);
+            }
+            self.debug_key(key, action);
+            if !pressed {
+                self.keys.remove(&key);
+            }
+            return Ok(());
+        }
         // Sneak and sprint are ToggleKeyMappings: a press (or a key
         // repeat) flips them when toggling; only releases reach them
         // behind a screen (KeyboardHandler.keyPress).
