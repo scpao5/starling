@@ -7678,12 +7678,22 @@ impl Game<'_> {
         self.right = false;
     }
     fn sync_toggle(&mut self, slot: usize) {
-        let key = [KeyCode::ShiftLeft, KeyCode::ControlLeft][slot];
-        let touch = slot == 0 && self.touch_sneaking();
-        if self.toggles.is_down(slot) || touch {
-            self.keys.insert(key);
+        // Both sides, so a launcher's Shift or Ctrl reads as held whichever one it sent. The
+        // game looks keys up by the code it was given, and a left-only entry leaves a right-hand
+        // press looking released.
+        let keys = if slot == 0 {
+            [KeyCode::ShiftLeft, KeyCode::ShiftRight]
         } else {
-            self.keys.remove(&key);
+            [KeyCode::ControlLeft, KeyCode::ControlRight]
+        };
+        let touch = slot == 0 && self.touch_sneaking();
+        let down = self.toggles.is_down(slot) || touch;
+        for key in keys {
+            if down {
+                self.keys.insert(key);
+            } else {
+                self.keys.remove(&key);
+            }
         }
     }
     /// Let a held sneak, sprint or modifier key go when the keyboard reports
@@ -7812,9 +7822,9 @@ impl Game<'_> {
                 !gameplay_has_keyboard(self.screen, self.title.is_some(), self.dialog_open());
             self.toggles.key(slot, action, screen_open, option);
             self.sync_toggle(slot);
-            if !pressed {
-                return Ok(());
-            }
+            // Answered here: a sneaking or sprinting key is a ToggleKeyMapping and nothing else,
+            // and letting it fall through would hand the same key to a screen a second time.
+            return Ok(());
         } else if !pressed {
             self.keys.remove(&key);
             return Ok(());
@@ -7826,6 +7836,13 @@ impl Game<'_> {
         // key.drop keeps throwing, in game and over a menu slot.
         if repeat && key != KeyCode::KeyQ {
             return Ok(());
+        }
+        // A screen that takes typing sees the key itself: Enter sends a chat line and Backspace
+        // deletes, and neither has a character a launcher's keyboard could carry instead.
+        // control_key_down is where those screens are answered (chat, the command block, the
+        // sign editor), so a launcher's key reaches them the same way a window's does.
+        if !gameplay_has_keyboard(self.screen, self.title.is_some(), self.dialog_open()) {
+            return self.control_key_down(key);
         }
         self.key_pressed(key)
     }
