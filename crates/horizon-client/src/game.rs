@@ -7796,9 +7796,10 @@ impl Game<'_> {
         // Sneak and sprint are ToggleKeyMappings: a press (or a key
         // repeat) flips them when toggling; only releases reach them
         // behind a screen (KeyboardHandler.keyPress).
+        // Either side: a launcher's on-screen Shift is one button, and vanilla binds both.
         let toggle = match key {
-            KeyCode::ShiftLeft => Some((0, self.settings.toggle_crouch)),
-            KeyCode::ControlLeft => Some((1, self.settings.toggle_sprint)),
+            KeyCode::ShiftLeft | KeyCode::ShiftRight => Some((0, self.settings.toggle_crouch)),
+            KeyCode::ControlLeft | KeyCode::ControlRight => Some((1, self.settings.toggle_sprint)),
             _ => None,
         };
         if let Some((slot, option)) = toggle {
