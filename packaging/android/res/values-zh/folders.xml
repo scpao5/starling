@@ -1,0 +1,4 @@
+<resources>
+    <string name="open_folder_failed">没有文件管理器能打开此文件夹。请打开“文件”应用并在其菜单中选 Starling。</string>
+    <string name="opening_world">正在带上模组打开世界…</string>
+</resources>

@@ -1,0 +1,87 @@
+name: rust-lib
+
+# The Rust engine alone, as a shared library: a launcher of its own (PCL2Android's Gradle
+# build) puts libhorizon_android.so in its jniLibs and starts a NativeActivity with
+# android.app.lib_name=horizon_android. The APK job in android.yml does the same work and then
+# packages it; this one stops at the library, so that build never waits on a Rust toolchain.
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Cargo profile: quick (default) or fast'
+        required: false
+        default: 'quick'
+        type: choice
+        options: [quick, fast]
+  push:
+    branches: [starling]
+    paths:
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'packaging/android/build_apk.py'
+      - '.github/workflows/rust-lib.yml'
+
+jobs:
+  library:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { abi: arm64-v8a, target: aarch64-linux-android }
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the build-tools, platform and NDK build_apk.py pins
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "build-tools;35.0.0" "platforms;android-36" "ndk;28.2.13676358" > /dev/null
+      - name: Install Rust for Android and cargo-ndk
+        run: |
+          rustup target add aarch64-linux-android
+          cargo install cargo-ndk --version 3.5.4 --locked
+      - name: Make room for the build
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk/*/source.properties.bak \
+                      /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+      # --library-only stops after the stripped library: no resources, no dex, no APK. The three
+      # libraries beside it are what a NativeActivity host needs too (libc++_shared, and the
+      # launcher's java/javac helpers).
+      - name: Build the library
+        env:
+          ABI: ${{ matrix.abi }}
+          PROFILE: ${{ inputs.profile || 'quick' }}
+        run: |
+          python packaging/android/build_apk.py --abi "$ABI" --profile "$PROFILE" --library-only
+          mkdir -p "$RUNNER_TEMP/lib/$ABI"
+          cp target/android/*.so "$RUNNER_TEMP/lib/$ABI/"
+          ls -lh "$RUNNER_TEMP/lib/$ABI/"
+      # The preparation as its own program: a phone cannot exec one out of its own files, but it
+      # can out of the folder the APK's libraries go to, and the preparation is heavy enough to
+      # want its own process (the launcher's stays free to draw the progress).
+      - name: Build the preparation
+        env:
+          ABI: ${{ matrix.abi }}
+        run: |
+          # The same page size the library is linked with: a phone with 16 KiB pages refuses a
+          # library whose LOAD segments are aligned for 4 KiB ones, and the launcher names it.
+          export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-Wl,-z,max-page-size=16384"
+          cargo ndk --target "$ABI" --platform 24 build --release \
+            --package horizon-prepare --bin horizon-prepare
+          out="$RUNNER_TEMP/lib/$ABI/libhorizon_prepare.so"
+          built=$(find target -type f -name horizon-prepare -perm -u+x | head -1)
+          test -n "$built"
+          cp "$built" "$out"
+          chmod 755 "$out"
+          ls -lh "$out"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: starling-rust-lib-${{ matrix.abi }}
+          path: ${{ runner.temp }}/lib/${{ matrix.abi }}/*.so
+          if-no-files-found: error
+          retention-days: 90

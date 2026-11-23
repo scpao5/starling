@@ -1,0 +1,15 @@
+<resources>
+    <string name="mod_permission_title">某个原生模组需要权限</string>
+    <string name="mod_permission_next">Android 接下来会询问你。之后可以在应用的设置中更改。</string>
+    <string name="continue_label">继续</string>
+    <string name="not_now">暂不</string>
+    <string name="build_server_title">构建服务器</string>
+    <string name="build_server_warning">我们对其他构建服务器不承担任何责任</string>
+    <string name="build_server_risk">另一个服务器返回的游戏会在 Starling 内部以完全权限运行，包括你的世界和已登录的账号。只使用你自己运行或完全信任的服务器。发送给它的只有你的原生模组文件。</string>
+    <string name="use_this_server">使用此服务器</string>
+    <string name="use_starling_server">使用 Starling 的</string>
+    <string name="not_https">这不是一个 https:// 地址。未做任何更改。</string>
+    <string name="horizon_bringing">正在从 Horizon Android 迁移你的世界</string>
+    <string name="horizon_not_folder">这不是 Horizon Android 的文件夹：请在位置列表中选 Horizon</string>
+    <string name="horizon_cannot_read">无法读取 Horizon Android 的文件：请关闭 Horizon Android 后重试</string>
+</resources>

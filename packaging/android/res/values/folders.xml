@@ -1,0 +1,4 @@
+<resources>
+    <string name="open_folder_failed">No file manager could open the folder. Open the Files app and choose Starling in its menu.</string>
+    <string name="opening_world">Opening the world with its mods…</string>
+</resources>
