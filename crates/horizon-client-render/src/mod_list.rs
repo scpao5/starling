@@ -10,8 +10,9 @@ use std::{
 };
 
 pub const FILE: &str = "horizon-mods.txt";
-/// The folder holding `.hmod` files, beside `options.txt`.
-pub const DIR: &str = "horizon-mods";
+/// The folder holding `.hmod` files, beside `options.txt`. `mods`, the name a launcher and
+/// every other Minecraft install uses, so a folder read from FCL needs no copying.
+pub const DIR: &str = "mods";
 /// Where the launcher installs native mods (`<id>.hnmod`), beside [`DIR`]. They run only in a
 /// game the launcher built with them.
 pub const NATIVE_DIR: &str = "horizon-native-mods";
