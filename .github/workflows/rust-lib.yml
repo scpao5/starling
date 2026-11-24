@@ -13,14 +13,6 @@ on:
         default: 'quick'
         type: choice
         options: [quick, fast]
-  push:
-    branches: [starling]
-    paths:
-      - 'crates/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'packaging/android/build_apk.py'
-      - '.github/workflows/rust-lib.yml'
 
 jobs:
   library:
